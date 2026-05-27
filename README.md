@@ -177,4 +177,5 @@ Apache 2.0 — see [LICENSE](LICENSE).
 
 - Forked from [tabmadi/ts-template](https://github.com/tabmadi/ts-template)
 - [bgub/ts-base](https://github.com/bgub/ts-base)
+- [SamJbori/create-x3bun-app](https://github.com/SamJbori/create-x3bun-app)
 - [TypeScript Development First Steps with Bun and Modern Tooling — 2025](https://dappgenie.io/blogs/typescript-development-first-steps-with-bun-and-modern-tooling)
