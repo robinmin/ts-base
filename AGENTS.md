@@ -32,10 +32,11 @@ Never introduce a new runtime, package manager, linter, or formatter without exp
 ## Commands
 
 ```bash
-bun run lint      # biome check + tsc --noEmit  (the gate)
-bun run format    # biome check --write          (autofix)
-bun run autofix   # format then type-check
-bun run test      # bun test with coverage
+bun run lint       # biome check + tsc --noEmit  (the gate)
+bun run typecheck  # tsc --noEmit only
+bun run format     # biome check --write          (autofix)
+bun run autofix    # format then type-check
+bun run test       # bun test with coverage
 ```
 
 Mode-specific: app has `start`/`dev`; lib has `build`/`dev` (tsdown) + `size` (size-limit).
