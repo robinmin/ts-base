@@ -1,23 +1,25 @@
 {
-	"name": "ts-template",
+	"name": "ts-base",
 	"type": "module",
 	"private": true,
 	"scripts": {
 		"prepare": "lefthook install",
 		"start": "bun run src/index.ts",
 		"dev": "bun --watch run src/index.ts",
-		"test": "bun test",
+		"test": "NODE_ENV=test bun test --coverage --coverage-dir=coverage --reporter=dots",
+		"test:full": "NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=coverage",
 		"lint": "biome check . && tsc --noEmit",
-		"format": "biome check . --write"
+		"format": "biome check . --write",
+		"autofix": "biome check . --write --unsafe"
 	},
 	"devDependencies": {
 		"@types/bun": "latest",
 		"@types/convict": "^6.1.6"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^6"
 	},
 	"dependencies": {
-		"convict": "^6.2.4"
+		"convict": "^6.2.5"
 	}
 }
