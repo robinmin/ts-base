@@ -60,9 +60,10 @@ const APP_SCRIPTS = {
     dev: 'bun --watch run src/index.ts',
     test: 'NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots',
     'test:full': 'NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=.coverage',
-    lint: 'biome check . && tsc --noEmit',
+    typecheck: 'tsc --noEmit',
+    lint: 'biome check . && bun run typecheck',
     format: 'biome check . --write',
-    autofix: 'bun run format && tsc --noEmit',
+    autofix: 'bun run format && bun run typecheck',
 };
 
 const LIB_SCRIPTS = {
@@ -71,9 +72,10 @@ const LIB_SCRIPTS = {
     dev: 'tsdown --watch',
     test: 'NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots',
     'test:full': 'NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=.coverage',
-    lint: 'biome check . && tsc --noEmit',
+    typecheck: 'tsc --noEmit',
+    lint: 'biome check . && bun run typecheck',
     format: 'biome check . --write',
-    autofix: 'bun run format && tsc --noEmit',
+    autofix: 'bun run format && bun run typecheck',
     size: 'size-limit',
 };
 
