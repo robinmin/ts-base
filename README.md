@@ -98,6 +98,35 @@ type Result = { a: string } & { b: number };
 type PrettyResult = Prettify<Result>; // hovers as { a: string; b: number }
 ```
 
+## 🍳 Recipes (application mode)
+
+The default app is an intentionally minimal `Bun.serve` server. Two common upgrades:
+
+### Database — Bun native SQL
+
+`src-app/db.example.ts` is a zero-dependency reference using Bun's built-in SQL
+client (`import { SQL } from "bun"`). Tagged-template queries are parameterized,
+so they are injection-safe by default. Rename it to `db.ts`, adapt the schema,
+and set `$DATABASE_URL`. Delete the file if you don't need a database. See the
+[Bun SQL docs](https://bun.sh/docs/api/sql).
+
+### Routing — swap in Hono
+
+For anything beyond a couple of routes, replace the `fetch` handler in
+`src/index.ts` with [Hono](https://hono.dev/) (routing, middleware, validation):
+
+```ts
+import { Hono } from "hono";
+import { config } from "./config.js";
+
+const app = new Hono();
+app.get("/health", (c) => c.json({ status: "ok" }));
+
+export default { port: config.port, fetch: app.fetch };
+```
+
+Then `bun add hono`. Hono runs natively on `Bun.serve` and stays edge-portable.
+
 ## 📁 Project Structure
 
 Before `bun run setup` the template ships both modes side by side:
@@ -106,6 +135,7 @@ Before `bun run setup` the template ships both modes side by side:
 ├── src-app/              # application mode (kept if you pick "app")
 │   ├── index.ts          #   Bun.serve entry point
 │   ├── config.ts         #   convict-based configuration
+│   ├── db.example.ts     #   optional Bun native SQL reference (rename or delete)
 │   ├── types.ts          #   shared type utilities (Prettify)
 │   └── tests/
 ├── src-lib/              # library mode (kept if you pick "lib")
