@@ -308,6 +308,11 @@ async function main(): Promise<void> {
         await $`mv ${agentsSrc} ${ROOT}/AGENTS.md`.quiet();
     }
 
+    // Wire the .agents/skills symlink so multi-agent tooling (claude, codex, pi, …)
+    // shares a single skill tree without copying.
+    await $`mkdir -p ${ROOT}/.agents`.quiet();
+    await $`ln -sf ../.claude/skills ${ROOT}/.agents/skills`.quiet();
+
     // Remove the setup script and its package.json entry — the job is done.
     const finalPkg = await readPackageJson();
     if (finalPkg.scripts?.setup) {
