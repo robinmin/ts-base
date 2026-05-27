@@ -10,7 +10,7 @@
         "test:full": "NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=.coverage",
         "lint": "biome check . && tsc --noEmit",
         "format": "biome check . --write",
-        "autofix": "bun run format"
+        "autofix": "bun run format && tsc --noEmit"
     },
     "devDependencies": {
         "@types/bun": "latest",
