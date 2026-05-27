@@ -1,25 +1,25 @@
-import { config } from "./config.js";
+import { config } from './config.js';
 
 const server = Bun.serve({
-	port: config.port,
-	fetch(request) {
-		const url = new URL(request.url);
+    port: config.port,
+    fetch(request) {
+        const url = new URL(request.url);
 
-		if (url.pathname === "/health") {
-			return new Response(
-				JSON.stringify({
-					status: "ok",
-					timestamp: new Date().toISOString(),
-					uptime: process.uptime(),
-				}),
-				{
-					headers: { "Content-Type": "application/json" },
-				},
-			);
-		}
+        if (url.pathname === '/health') {
+            return new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                }),
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+        }
 
-		return new Response(null, { status: 404 });
-	},
+        return new Response(null, { status: 404 });
+    },
 });
 
 console.info(`Server running at http://localhost:${server.port}`);
