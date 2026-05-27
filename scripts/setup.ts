@@ -1,17 +1,22 @@
 #!/usr/bin/env bun
 /**
- * One-shot template initializer. Picks application or library mode, wires the
- * matching source folder, scripts, deps, and CI into place, then deletes itself
- * and the unused scaffolding so the result looks hand-written, not templated.
+ * One-shot template initializer. Promotes the chosen layout (app, lib, or mono),
+ * wires the matching scripts/deps/CI, then deletes itself and the unused
+ * scaffolding so the result looks hand-written, not templated.
  *
  * Usage:
- *   bun run setup            # interactive prompt
- *   bun run setup --mode=app # or --mode=lib, non-interactive
+ *   bun run setup                                # interactive prompt
+ *   bun run setup --mode=app                     # non-interactive mode select
+ *   bun run setup --mode=app --no-db --no-convict  # + strip optional samples
+ *
+ * Flags (app mode only):
+ *   --no-db       Delete src/db.example.ts and skip the Bun SQL dependency.
+ *   --no-convict  Remove convict + @types/convict and delete src/config.ts.
  */
 import { rm } from 'node:fs/promises';
-import { $ } from 'bun';
+import { $, Glob } from 'bun';
 
-type Mode = 'app' | 'lib';
+type Mode = 'app' | 'lib' | 'mono';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -22,14 +27,14 @@ function fail(message: string): never {
 
 async function resolveMode(): Promise<Mode> {
     const arg = process.argv.find((a) => a.startsWith('--mode='))?.split('=')[1];
-    if (arg === 'app' || arg === 'lib') {
+    if (arg === 'app' || arg === 'lib' || arg === 'mono') {
         return arg;
     }
     if (arg) {
-        fail(`unknown --mode=${arg} (expected "app" or "lib")`);
+        fail(`unknown --mode=${arg} (expected "app", "lib", or "mono")`);
     }
 
-    process.stdout.write('Initialize as [a]pplication or [l]ibrary? (a/l) ');
+    process.stdout.write('Initialize as [a]pplication, [l]ibrary, or [m]onorepo? (a/l/m) ');
     for await (const line of console) {
         const choice = line.trim().toLowerCase();
         if (choice === 'a' || choice === 'app') {
@@ -38,9 +43,29 @@ async function resolveMode(): Promise<Mode> {
         if (choice === 'l' || choice === 'lib') {
             return 'lib';
         }
-        process.stdout.write('Please type "a" or "l": ');
+        if (choice === 'm' || choice === 'mono') {
+            return 'mono';
+        }
+        process.stdout.write('Please type "a", "l", or "m": ');
     }
     fail('no mode selected');
+}
+
+type CleanupFlags = { noDb: boolean; noConvict: boolean };
+
+function parseCleanupFlags(): CleanupFlags {
+    return {
+        noDb: process.argv.includes('--no-db'),
+        noConvict: process.argv.includes('--no-convict'),
+    };
+}
+
+// Turns a package name into a workspace scope: "@foo/bar" or "foo" -> "foo".
+function deriveScope(name: unknown): string {
+    const raw = typeof name === 'string' && name.length > 0 ? name : 'app';
+    const stripped = raw.startsWith('@') ? raw.slice(1).split('/')[0] : raw;
+    // npm scopes allow lowercase letters, digits, hyphens, dots, underscores.
+    return (stripped ?? 'app').toLowerCase().replace(/[^a-z0-9._-]/g, '-') || 'app';
 }
 
 // biome-ignore lint/suspicious/noExplicitAny: package.json is free-form JSON.
@@ -79,10 +104,21 @@ const LIB_SCRIPTS = {
     size: 'size-limit',
 };
 
-function patchApp(pkg: PackageJson): void {
+function patchApp(pkg: PackageJson, flags: CleanupFlags): void {
     pkg.scripts = APP_SCRIPTS;
-    // Application stays private and ships nothing to a registry.
     pkg.private = true;
+
+    if (flags.noConvict) {
+        if (pkg.dependencies) {
+            delete pkg.dependencies.convict;
+            if (Object.keys(pkg.dependencies).length === 0) {
+                delete pkg.dependencies;
+            }
+        }
+        if (pkg.devDependencies?.['@types/convict']) {
+            delete pkg.devDependencies['@types/convict'];
+        }
+    }
 }
 
 function patchLib(pkg: PackageJson): void {
@@ -148,14 +184,72 @@ async function moveWorkflows(mode: Mode): Promise<void> {
     await $`cp -R ${src}/. ${dest}/`.quiet();
     await rm(`${ROOT}/.github/workflows-app`, { recursive: true, force: true });
     await rm(`${ROOT}/.github/workflows-lib`, { recursive: true, force: true });
+    await rm(`${ROOT}/.github/workflows-mono`, { recursive: true, force: true });
 }
 
-async function main(): Promise<void> {
-    if (await Bun.file(`${ROOT}/src/index.ts`).exists()) {
-        fail('src/ already exists — setup has already run. Aborting to avoid clobbering work.');
-    }
+async function promoteTsconfig(mode: 'app' | 'lib'): Promise<void> {
+    const src = `${ROOT}/tsconfig.${mode}.json`;
+    const text = await Bun.file(src).text();
+    await Bun.write(`${ROOT}/tsconfig.json`, text);
+    await rm(`${ROOT}/tsconfig.app.json`, { force: true });
+    await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
+}
 
-    const mode = await resolveMode();
+// Replaces the @SCOPE placeholder in the root package.json plus every workspace
+// package.json and TypeScript source/test file with the project's real scope, in
+// place. Bun's Glob has no brace expansion, so each glob is scanned separately.
+async function applyScope(scope: string): Promise<void> {
+    const patterns = [
+        'package.json',
+        'apps/*/package.json',
+        'packages/*/package.json',
+        'apps/**/*.ts',
+        'apps/**/*.tsx',
+        'packages/**/*.ts',
+        'packages/**/*.tsx',
+    ];
+    const seen = new Set<string>();
+    for (const pattern of patterns) {
+        for await (const rel of new Glob(pattern).scan({ cwd: ROOT })) {
+            if (seen.has(rel)) {
+                continue;
+            }
+            seen.add(rel);
+            const path = `${ROOT}/${rel}`;
+            const text = await Bun.file(path).text();
+            await Bun.write(path, text.replaceAll('@SCOPE/', `@${scope}/`));
+        }
+    }
+}
+
+async function setupMono(scope: string): Promise<void> {
+    const monoRoot = `${ROOT}/src-monorepo`;
+
+    // Promote the monorepo contents up to the repo root.
+    for (const entry of ['apps', 'packages', 'tooling', 'turbo.json']) {
+        await $`mv ${monoRoot}/${entry} ${ROOT}/${entry}`.quiet();
+    }
+    // The monorepo's root package.json becomes the project's root package.json,
+    // carrying the project name forward.
+    const flatPkg = await readPackageJson();
+    const monoPkg = (await Bun.file(`${monoRoot}/package.json`).json()) as PackageJson;
+    monoPkg.name = flatPkg.name ?? 'app';
+    await writePackageJson(monoPkg);
+
+    // Drop single-package flat-mode artifacts the monorepo doesn't use.
+    await rm(`${monoRoot}`, { recursive: true, force: true });
+    await rm(`${ROOT}/src-app`, { recursive: true, force: true });
+    await rm(`${ROOT}/src-lib`, { recursive: true, force: true });
+    await rm(`${ROOT}/tsconfig.json`, { force: true });
+    await rm(`${ROOT}/tsconfig.app.json`, { force: true });
+    await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
+    await rm(`${ROOT}/tsdown.config.ts`, { force: true });
+
+    await applyScope(scope);
+    await moveWorkflows('mono');
+}
+
+async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void> {
     const keep = mode === 'app' ? 'src-app' : 'src-lib';
     const drop = mode === 'app' ? 'src-lib' : 'src-app';
 
@@ -163,14 +257,22 @@ async function main(): Promise<void> {
         fail(`expected ${keep}/ to exist — is this an unmodified template checkout?`);
     }
 
-    console.info(`Setting up in ${mode} mode...`);
-
     await $`mv ${ROOT}/${keep} ${ROOT}/src`.quiet();
     await rm(`${ROOT}/${drop}`, { recursive: true, force: true });
+    await rm(`${ROOT}/src-monorepo`, { recursive: true, force: true });
+
+    if (mode === 'app') {
+        if (flags.noDb) {
+            await rm(`${ROOT}/src/db.example.ts`, { force: true });
+        }
+        if (flags.noConvict) {
+            await rm(`${ROOT}/src/config.ts`, { force: true });
+        }
+    }
 
     const pkg = await readPackageJson();
     if (mode === 'app') {
-        patchApp(pkg);
+        patchApp(pkg, flags);
     } else {
         patchLib(pkg);
     }
@@ -179,11 +281,28 @@ async function main(): Promise<void> {
     if (mode === 'lib') {
         await writeLibExtras();
     } else {
-        // Only the library publishes; drop the build config the app never uses.
         await rm(`${ROOT}/tsdown.config.ts`, { force: true });
     }
 
+    await promoteTsconfig(mode);
     await moveWorkflows(mode);
+}
+
+async function main(): Promise<void> {
+    if (await Bun.file(`${ROOT}/src/index.ts`).exists()) {
+        fail('src/ already exists — setup has already run. Aborting to avoid clobbering work.');
+    }
+
+    const mode = await resolveMode();
+    const flags = parseCleanupFlags();
+    console.info(`Setting up in ${mode} mode...`);
+
+    if (mode === 'mono') {
+        const scope = deriveScope((await readPackageJson()).name);
+        await setupMono(scope);
+    } else {
+        await setupFlat(mode, flags);
+    }
 
     // Remove the setup script and its package.json entry — the job is done.
     const finalPkg = await readPackageJson();
