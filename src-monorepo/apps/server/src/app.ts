@@ -1,5 +1,5 @@
-import { type Post, totalLikes } from '@SCOPE/api';
 import { Hono } from 'hono';
+import { type Post, totalLikes } from '../../../packages/api/src/index.js';
 
 export const app = new Hono();
 
