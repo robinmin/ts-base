@@ -8,7 +8,7 @@ describe('server routes', () => {
         expect(await res.json()).toEqual({ status: 'ok' });
     });
 
-    it('GET /posts/likes sums likes via @SCOPE/api', async () => {
+    it('GET /posts/likes sums likes via api', async () => {
         const res = await app.request('/posts/likes');
         expect(await res.json()).toEqual({ total: 42 });
     });
