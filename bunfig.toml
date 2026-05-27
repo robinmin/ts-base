@@ -7,9 +7,7 @@ exact = true
 coverage = true
 coverageDir = ".coverage"
 coverageReporter = ["text", "lcov"]
-# Aggregate baseline gate. Strict per-file (line >= 90%, function >= 90%)
-# is enforced separately by `spur`.
 coverageThreshold = { lines = 0.9, functions = 0.9 }
 coverageSkipTestFiles = true
-pathIgnorePatterns = ["vendors/**", "src-monorepo/**"]
+pathIgnorePatterns = ["vendors/**", "build/**", "dist/**", "node_modules/**"]
 coveragePathIgnorePatterns = []
