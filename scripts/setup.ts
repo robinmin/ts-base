@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * One-shot template initializer. Promotes the chosen layout (app, lib, or mono),
+ * One-shot template initializer. Promotes the chosen layout (app, lib, cli, or mono),
  * wires the matching scripts/deps/CI, then deletes itself and the unused
  * scaffolding so the result looks hand-written, not templated.
  *
@@ -16,7 +16,7 @@
 import { rm } from 'node:fs/promises';
 import { $, Glob } from 'bun';
 
-type Mode = 'app' | 'lib' | 'mono';
+type Mode = 'app' | 'lib' | 'cli' | 'mono';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -27,14 +27,14 @@ function fail(message: string): never {
 
 async function resolveMode(): Promise<Mode> {
     const arg = process.argv.find((a) => a.startsWith('--mode='))?.split('=')[1];
-    if (arg === 'app' || arg === 'lib' || arg === 'mono') {
+    if (arg === 'app' || arg === 'lib' || arg === 'cli' || arg === 'mono') {
         return arg;
     }
     if (arg) {
-        fail(`unknown --mode=${arg} (expected "app", "lib", or "mono")`);
+        fail(`unknown --mode=${arg} (expected "app", "lib", "cli", or "mono")`);
     }
 
-    process.stdout.write('Initialize as [a]pplication, [l]ibrary, or [m]onorepo? (a/l/m) ');
+    process.stdout.write('Initialize as [a]pplication, [l]ibrary, [c]li, or [m]onorepo? (a/l/c/m) ');
     for await (const line of console) {
         const choice = line.trim().toLowerCase();
         if (choice === 'a' || choice === 'app') {
@@ -43,10 +43,13 @@ async function resolveMode(): Promise<Mode> {
         if (choice === 'l' || choice === 'lib') {
             return 'lib';
         }
+        if (choice === 'c' || choice === 'cli') {
+            return 'cli';
+        }
         if (choice === 'm' || choice === 'mono') {
             return 'mono';
         }
-        process.stdout.write('Please type "a", "l", or "m": ');
+        process.stdout.write('Please type "a", "l", "c", or "m": ');
     }
     fail('no mode selected');
 }
@@ -184,6 +187,7 @@ async function moveWorkflows(mode: Mode): Promise<void> {
     await $`cp -R ${src}/. ${dest}/`.quiet();
     await rm(`${ROOT}/.github/workflows-app`, { recursive: true, force: true });
     await rm(`${ROOT}/.github/workflows-lib`, { recursive: true, force: true });
+    await rm(`${ROOT}/.github/workflows-cli`, { recursive: true, force: true });
     await rm(`${ROOT}/.github/workflows-mono`, { recursive: true, force: true });
 }
 
@@ -195,19 +199,10 @@ async function promoteTsconfig(mode: 'app' | 'lib'): Promise<void> {
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
 }
 
-// Replaces the @SCOPE placeholder in the root package.json plus every workspace
-// package.json and TypeScript source/test file with the project's real scope, in
-// place. Bun's Glob has no brace expansion, so each glob is scanned separately.
+// Replaces the @SCOPE placeholder in every package.json with the project's real
+// scope. Source files use relative imports and need no rewriting.
 async function applyScope(scope: string): Promise<void> {
-    const patterns = [
-        'package.json',
-        'apps/*/package.json',
-        'packages/*/package.json',
-        'apps/**/*.ts',
-        'apps/**/*.tsx',
-        'packages/**/*.ts',
-        'packages/**/*.tsx',
-    ];
+    const patterns = ['package.json', 'apps/*/package.json', 'packages/*/package.json'];
     const seen = new Set<string>();
     for (const pattern of patterns) {
         for await (const rel of new Glob(pattern).scan({ cwd: ROOT })) {
@@ -222,31 +217,33 @@ async function applyScope(scope: string): Promise<void> {
     }
 }
 
-async function setupMono(scope: string): Promise<void> {
-    const monoRoot = `${ROOT}/src-monorepo`;
+async function setupWorkspace(mode: 'cli' | 'mono', scope: string): Promise<void> {
+    const srcDir = mode === 'cli' ? 'src-cli' : 'src-monorepo';
+    const srcRoot = `${ROOT}/${srcDir}`;
 
-    // Promote the monorepo contents up to the repo root.
+    // Promote the workspace contents up to the repo root.
     for (const entry of ['apps', 'packages', 'tooling', 'turbo.json']) {
-        await $`mv ${monoRoot}/${entry} ${ROOT}/${entry}`.quiet();
+        await $`mv ${srcRoot}/${entry} ${ROOT}/${entry}`.quiet();
     }
-    // The monorepo's root package.json becomes the project's root package.json,
-    // carrying the project name forward.
+    // The workspace root package.json becomes the project's, carrying the
+    // project name forward.
     const flatPkg = await readPackageJson();
-    const monoPkg = (await Bun.file(`${monoRoot}/package.json`).json()) as PackageJson;
-    monoPkg.name = flatPkg.name ?? 'app';
-    await writePackageJson(monoPkg);
+    const wsPkg = (await Bun.file(`${srcRoot}/package.json`).json()) as PackageJson;
+    wsPkg.name = flatPkg.name ?? 'app';
+    await writePackageJson(wsPkg);
 
-    // Drop single-package flat-mode artifacts the monorepo doesn't use.
-    await rm(`${monoRoot}`, { recursive: true, force: true });
-    await rm(`${ROOT}/src-app`, { recursive: true, force: true });
-    await rm(`${ROOT}/src-lib`, { recursive: true, force: true });
+    // Drop all other mode scaffolding the workspace doesn't use.
+    await rm(`${srcRoot}`, { recursive: true, force: true });
+    for (const dir of ['src-app', 'src-lib', 'src-cli', 'src-monorepo']) {
+        await rm(`${ROOT}/${dir}`, { recursive: true, force: true });
+    }
     await rm(`${ROOT}/tsconfig.json`, { force: true });
     await rm(`${ROOT}/tsconfig.app.json`, { force: true });
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
     await rm(`${ROOT}/tsdown.config.ts`, { force: true });
 
     await applyScope(scope);
-    await moveWorkflows('mono');
+    await moveWorkflows(mode);
 }
 
 async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void> {
@@ -259,6 +256,7 @@ async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void
 
     await $`mv ${ROOT}/${keep} ${ROOT}/src`.quiet();
     await rm(`${ROOT}/${drop}`, { recursive: true, force: true });
+    await rm(`${ROOT}/src-cli`, { recursive: true, force: true });
     await rm(`${ROOT}/src-monorepo`, { recursive: true, force: true });
 
     if (mode === 'app') {
@@ -297,9 +295,9 @@ async function main(): Promise<void> {
     const flags = parseCleanupFlags();
     console.info(`Setting up in ${mode} mode...`);
 
-    if (mode === 'mono') {
+    if (mode === 'cli' || mode === 'mono') {
         const scope = deriveScope((await readPackageJson()).name);
-        await setupMono(scope);
+        await setupWorkspace(mode, scope);
     } else {
         await setupFlat(mode, flags);
     }
