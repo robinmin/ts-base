@@ -21,5 +21,5 @@
         "noUnusedParameters": true,
         "noPropertyAccessFromIndexSignature": false
     },
-    "exclude": ["node_modules", "vendors", "tsdown.config.ts"]
+    "include": ["src-app", "src-lib", "scripts"]
 }
