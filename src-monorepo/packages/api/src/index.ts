@@ -1,5 +1,5 @@
-import type { User } from '@SCOPE/db';
-import { add } from '@SCOPE/utils';
+import type { User } from '../../db/src/index.js';
+import { add } from '../../utils/src/index.js';
 
 // Shared contract consumed by both the server (apps/server) and the web client
 // (apps/web). Living in a package is what gives the monorepo end-to-end type
