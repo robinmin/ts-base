@@ -22,5 +22,4 @@ const server = Bun.serve({
 	},
 });
 
-// biome-ignore lint/suspicious/noConsole: it's just an example we don't want to add a logger for it
 console.info(`Server running at http://localhost:${server.port}`);
