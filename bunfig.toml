@@ -5,6 +5,7 @@ exact = true
 
 [test]
 coverage = true
+coverageDir = ".coverage"
 coverageReporter = ["text", "lcov"]
 # Aggregate baseline gate. Strict per-file (line >= 90%, function >= 90%)
 # is enforced separately by `spur`.
