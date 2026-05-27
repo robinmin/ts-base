@@ -1,25 +1,11 @@
-/**
- * Database access via Bun's native SQL driver — zero dependencies, no ORM.
- * Tagged-template queries are parameterized (values are bound, not interpolated),
- * so they are injection-safe by default. Docs: https://bun.sh/docs/api/sql
- *
- * The client connects lazily on first query, so importing this module is cheap
- * and does not require a live database (handy for tests).
- */
-import { SQL } from 'bun';
+import { db } from './connection.js';
 
 export interface User {
     id: number;
     email: string;
 }
 
-let client: SQL | undefined;
-
-// Lazily constructed so importing the package never opens a connection.
-export function db(): SQL {
-    client ??= new SQL(process.env.DATABASE_URL ?? '');
-    return client;
-}
+export { db };
 
 export async function findUserByEmail(email: string): Promise<User | undefined> {
     const rows = await db()<User[]>`SELECT id, email FROM users WHERE email = ${email} LIMIT 1`;
