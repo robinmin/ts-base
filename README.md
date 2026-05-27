@@ -2,10 +2,10 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.2-orange.svg)](https://bun.sh/)
-[![Biome](https://img.shields.io/badge/Biome-1.9-green.svg)](https://biomejs.dev/)
+[![Bun](https://img.shields.io/badge/Bun-1.3-orange.svg)](https://bun.sh/)
+[![Biome](https://img.shields.io/badge/Biome-2.4-green.svg)](https://biomejs.dev/)
 
-A modern, production-ready TypeScript starter wired up with Bun, Biome, Git hooks, and conventional commits — clone it and start building.
+A modern, production-ready TypeScript starter wired up with Bun, Biome, Git hooks, and conventional commits. Pick **application** or **library** mode at setup — clone it and start building.
 
 ## ✨ Stack
 
@@ -27,32 +27,48 @@ With [proto](https://moonrepo.dev/proto) (recommended — installs the exact too
 bash -c "$(curl -fsSL https://moonrepo.dev/install/proto.sh)"
 ```
 
-### Initialize project && Run
+### Initialize project
 
 ```bash
-# Initialize project from template and run dev server
-$PROJECT_NAME=my-project
+# Scaffold from the template
+PROJECT_NAME=my-project
 bunx degit robinmin/ts-base $PROJECT_NAME && cd $PROJECT_NAME
+
+# Pick a mode: application (Bun.serve server) or library (publishable package).
+# Renames the chosen src-*/ folder to src/, removes the other, wires up the
+# matching scripts, deps, and CI, then deletes itself.
+bun run setup            # interactive prompt
+# bun run setup --mode=app   # or --mode=lib, non-interactive
 
 # Install bun, biome, cog, lefthook + project deps + Git hooks
 proto use && bun install
+```
 
-# Run dev server
+### Run
+
+```bash
+# Application mode
 bun run dev     # dev server with file watching
 bun run start   # production server
+
+# Library mode
+bun run build   # bundle to dist/ via tsdown
+bun run dev     # rebuild on change
 ```
 
 ## 🛠️ Scripts
 
-| Script           | Description                          |
-|------------------|--------------------------------------|
-| `bun run start`  | Start the production server          |
-| `bun run dev`    | Start the dev server (watch mode)    |
-| `bun run test`   | Run tests                            |
-| `bun run lint`   | Biome check + `tsc --noEmit`         |
-| `bun run format` | Auto-fix and format with Biome       |
-| `bun run autofix` | Auto-fix and format with Biome       |
-| `bun run prepare`| Install Lefthook Git hooks           |
+Shared by both modes:
+
+| Script            | Description                          |
+|-------------------|--------------------------------------|
+| `bun run test`    | Run tests with coverage              |
+| `bun run lint`    | Biome check + `tsc --noEmit`         |
+| `bun run format`  | Auto-fix and format with Biome       |
+| `bun run autofix` | Format then type-check               |
+| `bun run prepare` | Install Lefthook Git hooks           |
+
+Application mode adds `start` / `dev` (Bun server). Library mode adds `build` / `dev` (tsdown) and `size` (size-limit).
 
 ## 🪝 Git Hooks & Conventional Commits
 
@@ -84,24 +100,40 @@ type PrettyResult = Prettify<Result>; // hovers as { a: string; b: number }
 
 ## 📁 Project Structure
 
+Before `bun run setup` the template ships both modes side by side:
+
 ```
-├── src/
-│   ├── index.ts          # Application entry point
-│   ├── config.ts         # convict-based configuration
-│   ├── types.ts          # Shared type utilities (Prettify)
-│   └── tests/            # Tests
+├── src-app/              # application mode (kept if you pick "app")
+│   ├── index.ts          #   Bun.serve entry point
+│   ├── config.ts         #   convict-based configuration
+│   ├── types.ts          #   shared type utilities (Prettify)
+│   └── tests/
+├── src-lib/              # library mode (kept if you pick "lib")
+│   ├── internal.ts       #   runtime-agnostic core
+│   ├── index.ts          #   Node/Bun entry (node:crypto)
+│   ├── browser.ts        #   browser entry (Web Crypto)
+│   ├── types.ts          #   shared type utilities (Prettify)
+│   └── tests/
+├── scripts/setup.ts      # one-shot mode picker (self-deletes)
+├── .github/workflows-*/  # per-mode CI (one is installed by setup)
+├── tsdown.config.ts      # library bundler config (lib mode only)
 ├── biome.json            # Biome configuration
 ├── tsconfig.json         # TypeScript configuration
-├── .prototools           # Pinned tool versions
+├── .prototools           # pinned tool versions
 └── package.json
 ```
 
+After setup, the chosen folder becomes `src/`, the other is removed, and the
+mode-specific scripts, deps, and CI are wired into `package.json` and
+`.github/workflows/`.
+
 ## 📋 Customization
 
-1. Update `name` and metadata in `package.json`.
-2. Replace the server in `src/index.ts` with your own.
-3. Adjust `tsconfig.json` / `biome.json` as needed.
-4. Rewrite this README for your project.
+1. Run `bun run setup` to choose application or library mode.
+2. Update `name` and metadata in `package.json`.
+3. Replace `src/` with your own code.
+4. Adjust `tsconfig.json` / `biome.json` as needed.
+5. Rewrite this README for your project.
 
 ## 🔒 Security
 
