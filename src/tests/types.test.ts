@@ -1,0 +1,22 @@
+import { describe, expect, it } from 'bun:test';
+import type { Prettify } from '../types.js';
+
+// Prettify is a type-level helper with no runtime output, so it is verified at
+// compile time: a structural equality assertion that fails to typecheck if the
+// flattened shape ever diverges from the intended object literal.
+type Expect<T extends true> = T;
+type Equal<A, B> = (<G>() => G extends A ? 1 : 2) extends <G>() => G extends B ? 1 : 2 ? true : false;
+
+type Intersection = { a: string } & { b: number };
+
+describe('Prettify', () => {
+    it('flattens an intersection while preserving its values at runtime', () => {
+        // Compile-time assertion: the flattened shape must equal the object
+        // literal. This line fails to typecheck if Prettify ever diverges.
+        const _assertFlattened: Expect<Equal<Prettify<Intersection>, { a: string; b: number }>> = true;
+        const value: Prettify<Intersection> = { a: 'x', b: 1 };
+
+        expect(_assertFlattened).toBe(true);
+        expect(value).toEqual({ a: 'x', b: 1 });
+    });
+});
