@@ -1,0 +1,14 @@
+telemetry = false
+
+[install]
+exact = true
+
+[test]
+coverage = true
+coverageReporter = ["text", "lcov"]
+# Aggregate baseline gate. Strict per-file (line >= 90%, function >= 90%)
+# is enforced separately by `spur`.
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+coverageSkipTestFiles = true
+pathIgnorePatterns = ["vendors/**"]
+coveragePathIgnorePatterns = []
