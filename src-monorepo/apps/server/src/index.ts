@@ -1,4 +1,4 @@
-import { config } from '@SCOPE/config';
+import { config } from '../../../packages/config/src/index.js';
 import { app } from './app.js';
 
 const server = Bun.serve({
