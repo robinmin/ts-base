@@ -1,232 +1,117 @@
-# 🚀 TypeScript Template
+# 🚀 ts-base
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-6.0-blue.svg)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.2-orange.svg)](https://bun.sh/)
 [![Biome](https://img.shields.io/badge/Biome-1.9-green.svg)](https://biomejs.dev/)
 
-A modern, production-ready template for TypeScript projects with all the essential tools and configurations you need to
-get started quickly! 🎯
+A modern, production-ready TypeScript starter wired up with Bun, Biome, Git hooks, and conventional commits — clone it and start building.
 
-## ✨ Features
+## ✨ Stack
 
-This template comes pre-configured with:
-
-- 🔥 **Bun Runtime**: Ultra-fast JavaScript runtime and package manager
-- 📘 **TypeScript**: Type-safe JavaScript with modern ES features
-- 🧹 **Biome**: Fast linter and formatter (Prettier + ESLint replacement)
-- 🔧 **Modern Configuration**: ESNext target with strict type checking
-- 🚨 **Git Integration**: Pre-configured with Biome VCS integration
-- 🪝 **Git Hooks**: Lefthook for automated quality checks
-- 📋 **Conventional Commits**: Cocogitto (cog) for commit message validation and changelog generation
-- 📝 **GitHub Templates**: CODE_OF_CONDUCT.md, SECURITY.md, and LICENSE included
-- ⚡ **Proto Tool Manager**: Automated tool management with [moonrepo proto](https://moonrepo.dev/proto)
+- **[Bun](https://bun.sh/)** — runtime, package manager, and test runner
+- **[TypeScript](https://www.typescriptlang.org/)** — ESNext, strict mode
+- **[Biome](https://biomejs.dev/)** — linter + formatter (replaces ESLint & Prettier)
+- **[Lefthook](https://github.com/evilmartians/lefthook)** — Git hooks
+- **[Cocogitto](https://github.com/cocogitto/cocogitto)** — conventional commits + changelog
+- **[proto](https://moonrepo.dev/proto)** — pins every tool version via `.prototools`
 
 ## 🚀 Quick Start
 
-### Prerequisites
+### Install tools and dependencies
 
-- [proto](https://moonrepo.dev/proto): A multi-language version manager that will manage all required tools
-- Alternatively, you can install tools separately:
-    - [Bun](https://bun.sh/): Ultra-fast JavaScript runtime and package manager
-    - [Biome](https://biomejs.dev/): Fast linter and formatter (Prettier + ESLint replacement)
-    - [Cocogitto](https://github.com/cocogitto/cocogitto): Conventional commits tooling
-    - [Lefthook](https://github.com/evilmartians/lefthook): Fast and powerful Git hooks manager
-
-### Installation
-
-1. **Use this template** by clicking the "Use this template" button on GitHub
-2. **Clone your new repository**:
-   ```bash
-   git clone https://github.com/yourusername/your-project-name.git
-   cd your-project-name
-   ```
-3. **Install tools and dependencies**:
-   
-   **Option A: Automated Setup (Recommended)**
-   ```bash
-   # Run the automated installation script
-   ./scripts/install.sh
-   
-   # Install project dependencies
-   bun install
-   ```
-   
-   **Option B: Manual Setup**
-   ```bash
-   # Install proto (if not already installed)
-   bash -c "$(curl -fsSL https://moonrepo.dev/install/proto.sh)"
-   
-   # Install all required tools (bun, biome, cog, lefthook) using proto
-   proto use
-   
-   # Install Git hooks with Lefthook
-   lefthook install
-   
-   # Install project dependencies
-   bun install
-   ```
-
-### 🏃‍♂️ Running the Project
+With [proto](https://moonrepo.dev/proto) (recommended — installs the exact tool versions from `.prototools`):
 
 ```bash
-# Start the development server (with watch mode)
-bun run dev
+# Install proto if you don't have it
+bash -c "$(curl -fsSL https://moonrepo.dev/install/proto.sh)"
 
-# Start the production server
-bun run start
+# Install bun, biome, cog, lefthook + project deps + Git hooks
+proto use && bun install
 ```
 
-## 🛠️ Development
-
-### Available Scripts
-
-| Script            | Description                                 |
-|-------------------|---------------------------------------------|
-| `bun run start`   | Start the production server                 |
-| `bun run dev`     | Start development server with file watching |
-| `bun run lint`    | Run Biome linter                            |
-| `bun run format`  | Format code with Biome                      |
-| `bun run prepare` | Install Lefthook Git hooks                  |
-
-### 🧹 Code Quality
-
-This template uses **Biome** for both linting and formatting:
+Or install the tools yourself ([Bun](https://bun.sh/), [Biome](https://biomejs.dev/), [Cocogitto](https://github.com/cocogitto/cocogitto), [Lefthook](https://github.com/evilmartians/lefthook)), then:
 
 ```bash
-# Check for linting issues
-bun run lint
-
-# Auto-fix linting issues and format code
-bun run format
+bun install   # installs deps and runs `lefthook install` via the prepare script
 ```
 
-### 🪝 Git Hooks & Conventional Commits
-
-This template includes **Lefthook** for automated Git hooks
-
-#### Automatic Quality Checks
-
-Git hooks will automatically run on:
-
-- **Pre-commit**: Format code, run linter, and type-check
-- **Commit-msg**: Validate commit message format
-- **Pre-push**: Final lint and type checks
-
-#### Conventional Commits
-
-All commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) specification:
+### Run
 
 ```bash
-# ✅ Valid commit messages
+bun run dev     # dev server with file watching
+bun run start   # production server
+```
+
+## 🛠️ Scripts
+
+| Script           | Description                          |
+|------------------|--------------------------------------|
+| `bun run start`  | Start the production server          |
+| `bun run dev`    | Start the dev server (watch mode)    |
+| `bun run test`   | Run tests                            |
+| `bun run lint`   | Biome check + `tsc --noEmit`         |
+| `bun run format` | Auto-fix and format with Biome       |
+| `bun run prepare`| Install Lefthook Git hooks           |
+
+## 🪝 Git Hooks & Conventional Commits
+
+Lefthook runs quality checks automatically:
+
+- **pre-commit** — format, lint, type-check
+- **commit-msg** — validate the message
+- **pre-push** — final lint + type-check
+
+Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/):
+
+```bash
 git commit -m "feat: add user authentication"
 git commit -m "fix: resolve memory leak in data processing"
-git commit -m "docs: update API documentation"
-git commit -m "refactor: simplify error handling logic"
-
-# ❌ Invalid commit messages
-git commit -m "add feature"           # Missing type
-git commit -m "Fix bug"              # Wrong case
-git commit -m "feat!: breaking change" # Use BREAKING CHANGE footer instead
 ```
 
-**Available commit types:**
+Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Breaking changes go in a `BREAKING CHANGE:` footer.
 
-- `feat` - New features
-- `fix` - Bug fixes
-- `docs` - Documentation changes
-- `style` - Code style changes (formatting, etc.)
-- `refactor` - Code refactoring
-- `perf` - Performance improvements
-- `test` - Adding or updating tests
-- `build` - Build system changes
-- `ci` - CI configuration changes
-- `chore` - Other changes (maintenance, etc.)
-- `revert` - Reverting previous commits
+## 🧰 Type Utilities
 
-#### Managing Git Hooks
+`src/types.ts` ships `Prettify<T>`, which flattens intersections and mapped types into a single object literal so editor tooltips read `{ a: string; b: number }` instead of `A & B`. It is compile-time only and emits no runtime code.
 
-```bash
-# Install hooks (automatically runs after `bun install`)
-bun run prepare
+```ts
+import type { Prettify } from "./types.js";
 
-# Skip hooks for a single commit (use sparingly)
-git commit -m "feat: add feature" --no-verify
-
-# Temporarily disable hooks
-lefthook uninstall
-
-# Re-enable hooks
-lefthook install
+type Result = { a: string } & { b: number };
+type PrettyResult = Prettify<Result>; // hovers as { a: string; b: number }
 ```
 
-### 📁 Project Structure
+## 📁 Project Structure
 
 ```
 ├── src/
-│   └── index.ts          # Main application entry point
-├── biome.json           # Biome configuration
-├── tsconfig.json        # TypeScript configuration
-├── package.json         # Project dependencies and scripts
-└── README.md            # You are here! 📍
+│   ├── index.ts          # Application entry point
+│   ├── config.ts         # convict-based configuration
+│   ├── types.ts          # Shared type utilities (Prettify)
+│   └── tests/            # Tests
+├── biome.json            # Biome configuration
+├── tsconfig.json         # TypeScript configuration
+├── .prototools           # Pinned tool versions
+└── package.json
 ```
-
-## 🔧 Configuration
-
-### TypeScript Configuration
-
-The `tsconfig.json` is configured for modern TypeScript development:
-
-- ESNext target and library
-- Strict type checking enabled
-- Bun-optimized module resolution
-- React JSX support ready
-
-### Biome Configuration
-
-The `biome.json` includes:
-
-- All recommended rules are enabled
-- Tab indentation (configurable)
-- Git integration
-- Import organization
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run the linter and formatter: `bun run format`
-5. Commit your changes (`git commit -m 'Add some amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
 
 ## 📋 Customization
 
-To customize this template for your project:
-
-1. **Update package.json** with your project details
-2. **Modify the server** in `src/index.ts` to fit your needs
-3. **Adjust TypeScript/Biome configs** as needed
-4. **Update this README** with your project-specific information
+1. Update `name` and metadata in `package.json`.
+2. Replace the server in `src/index.ts` with your own.
+3. Adjust `tsconfig.json` / `biome.json` as needed.
+4. Rewrite this README for your project.
 
 ## 🔒 Security
 
-Please see [SECURITY.md](SECURITY.md) for our security policy and how to report security vulnerabilities.
+See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnerabilities.
 
 ## 📄 License
 
-This project is licensed under the Apache License—see the [LICENSE](LICENSE) file for details.
+Apache 2.0 — see [LICENSE](LICENSE).
 
-## 🙏 Acknowledgments
+## References
 
-- [Bun](https://bun.sh/) for the amazing runtime
-- [Biome](https://biomejs.dev/) for fast linting and formatting
-- [TypeScript](https://www.typescriptlang.org/) for type safety
-- [Lefthook](https://github.com/evilmartians/lefthook) for fast and powerful Git hooks management
-- [Cocogitto](https://github.com/cocogitto/cocogitto) for conventional commits tooling and changelog generation
-- [Proto](https://moonrepo.dev/proto) for multi-language version management
-
----
-
-**Happy coding! 🎉** If you find this template useful, please give it a ⭐️
+- Forked from [tabmadi/ts-template](https://github.com/tabmadi/ts-template) and [bgub/ts-base](https://github.com/bgub/ts-base)
+- [TypeScript Development First Steps with Bun and Modern Tooling — 2025](https://dappgenie.io/blogs/typescript-development-first-steps-with-bun-and-modern-tooling)
