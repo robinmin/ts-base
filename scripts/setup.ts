@@ -302,6 +302,12 @@ async function main(): Promise<void> {
         await setupFlat(mode, flags);
     }
 
+    // Swap in the mode-specific AGENTS.md if one exists.
+    const agentsSrc = `${ROOT}/AGENTS-${mode}.md`;
+    if (await Bun.file(agentsSrc).exists()) {
+        await $`mv ${agentsSrc} ${ROOT}/AGENTS.md`.quiet();
+    }
+
     // Remove the setup script and its package.json entry — the job is done.
     const finalPkg = await readPackageJson();
     if (finalPkg.scripts?.setup) {
