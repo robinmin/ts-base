@@ -11,5 +11,5 @@ coverageReporter = ["text", "lcov"]
 # is enforced separately by `spur`.
 coverageThreshold = { lines = 0.9, functions = 0.9 }
 coverageSkipTestFiles = true
-pathIgnorePatterns = ["vendors/**"]
+pathIgnorePatterns = ["vendors/**", "src-monorepo/**"]
 coveragePathIgnorePatterns = []
