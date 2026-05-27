@@ -1,0 +1,22 @@
+{
+    "name": "@SCOPE/cli",
+    "type": "module",
+    "private": true,
+    "bin": {
+        "cli": "./src/index.ts"
+    },
+    "scripts": {
+        "start": "bun run src/index.ts",
+        "test": "NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots",
+        "typecheck": "tsc --noEmit"
+    },
+    "dependencies": {
+        "@SCOPE/config": "workspace:*",
+        "@SCOPE/utils": "workspace:*",
+        "commander": "^14.0.0",
+        "@commander-js/extra-typings": "^14.0.0"
+    },
+    "devDependencies": {
+        "@types/bun": "latest"
+    }
+}
