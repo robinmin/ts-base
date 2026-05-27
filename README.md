@@ -25,20 +25,19 @@ With [proto](https://moonrepo.dev/proto) (recommended — installs the exact too
 ```bash
 # Install proto if you don't have it
 bash -c "$(curl -fsSL https://moonrepo.dev/install/proto.sh)"
+```
+
+### Initialize project && Run
+
+```bash
+# Initialize project from template and run dev server
+$PROJECT_NAME=my-project
+bunx degit robinmin/ts-base $PROJECT_NAME && cd $PROJECT_NAME
 
 # Install bun, biome, cog, lefthook + project deps + Git hooks
 proto use && bun install
-```
 
-Or install the tools yourself ([Bun](https://bun.sh/), [Biome](https://biomejs.dev/), [Cocogitto](https://github.com/cocogitto/cocogitto), [Lefthook](https://github.com/evilmartians/lefthook)), then:
-
-```bash
-bun install   # installs deps and runs `lefthook install` via the prepare script
-```
-
-### Run
-
-```bash
+# Run dev server
 bun run dev     # dev server with file watching
 bun run start   # production server
 ```
@@ -52,6 +51,7 @@ bun run start   # production server
 | `bun run test`   | Run tests                            |
 | `bun run lint`   | Biome check + `tsc --noEmit`         |
 | `bun run format` | Auto-fix and format with Biome       |
+| `bun run autofix` | Auto-fix and format with Biome       |
 | `bun run prepare`| Install Lefthook Git hooks           |
 
 ## 🪝 Git Hooks & Conventional Commits
