@@ -165,6 +165,33 @@ mode-specific scripts, deps, and CI are wired into `package.json` and
 4. Adjust `tsconfig.json` / `biome.json` as needed.
 5. Rewrite this README for your project.
 
+## 🧹 Post-Initialization Cleanup
+
+`bun run setup` already removes the unused mode, deletes itself, and installs the
+matching CI. A few project-specific leftovers are worth pruning by hand:
+
+**Both modes**
+
+- Replace the sample code in `src/` (and its `tests/`) with your own.
+- Rewrite this `README.md` and update `AGENTS.md` (drop the dual-mode wording — the
+  template is now single-mode).
+- Review `.github/workflows/ci.yml` (branch names, secrets) before pushing.
+
+**Application mode**
+
+- Keep or delete `src/db.example.ts` depending on whether you need a database; if
+  you keep it, rename it to `db.ts` and set `$DATABASE_URL`.
+- Drop `convict` (`bun remove convict @types/convict`) if you don't need config
+  validation, and delete `src/config.ts`.
+
+**Library mode**
+
+- Set the package `name`, `description`, `keywords`, `author`, and `repository`
+  in `package.json` and `jsr.json` before publishing.
+- Confirm the `size-limit` budget in `package.json` fits your bundle.
+- Update `.release-please-manifest.json` if you start at a version other than
+  `0.0.0`.
+
 ## 🔒 Security
 
 See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnerabilities.
