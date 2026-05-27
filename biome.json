@@ -41,5 +41,14 @@
             "semicolons": "always",
             "trailingCommas": "all"
         }
+    },
+    "css": {
+        "formatter": {
+            "quoteStyle": "double"
+        },
+        "parser": {
+            "cssModules": true,
+            "tailwindDirectives": true
+        }
     }
 }
