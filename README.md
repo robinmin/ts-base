@@ -187,40 +187,16 @@ deps, and CI are wired into `package.json` and `.github/workflows/`.
 
 ## 🧹 Post-Initialization Cleanup
 
-`bun run setup` already removes the unused mode, deletes itself, and installs the
-matching CI. A few project-specific leftovers are worth pruning by hand:
+`bun run setup` handles all structural cleanup: removes unused modes, deletes
+itself, installs the matching CI, and optionally strips the database example or
+convict config via flags.
 
-**Every mode**
+Use `bun run setup --mode=app --no-db` to skip the Bun SQL sample, or
+`--no-convict` to drop config validation. For more complex trimming (monorepo
+workspaces, etc.), do it by hand after setup.
 
-- Replace the sample code (and its `tests/`) with your own.
-- Rewrite this `README.md` and update `AGENTS.md` (drop the multi-mode wording — the
-  template is now single-mode).
-- Review `.github/workflows/ci.yml` (branch names, secrets) before pushing.
-
-**Application mode**
-
-- Keep or delete `src/db.example.ts` depending on whether you need a database; if
-  you keep it, rename it to `db.ts` and set `$DATABASE_URL`.
-- Drop `convict` (`bun remove convict @types/convict`) if you don't need config
-  validation, and delete `src/config.ts`.
-
-**Library mode**
-
-- Set the package `name`, `description`, `keywords`, `author`, and `repository`
-  in `package.json` and `jsr.json` before publishing.
-- Confirm the `size-limit` budget in `package.json` fits your bundle.
-- Update `.release-please-manifest.json` if you start at a version other than
-  `0.0.0`.
-
-**Monorepo mode**
-
-- Trim the `apps/` and `packages/` you don't need; the samples (`server`, `web`,
-  `cli`, `api`, `config`, `db`, `utils`) are wired together only to demonstrate
-  cross-workspace imports.
-- The root `package.json` pins `packageManager` so Turbo can resolve workspaces —
-  keep it in sync with your Bun version.
-- Adjust the shared `tooling/typescript/*.json` presets and `turbo.json` task graph
-  to match your real workspaces.
+What's left is **your** project now — replace the sample code, rewrite this
+README, and adjust the remaining config to fit.
 
 ## 🔒 Security
 
