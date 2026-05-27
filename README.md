@@ -44,6 +44,9 @@ bun run setup            # interactive prompt
 
 # Install bun, biome, cog, lefthook + project deps + Git hooks
 proto use && bun install
+
+# possible Initialization for further development
+git init && tasks init && spur init
 ```
 
 ### Run
