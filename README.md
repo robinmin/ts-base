@@ -113,5 +113,6 @@ Apache 2.0 — see [LICENSE](LICENSE).
 
 ## References
 
-- Forked from [tabmadi/ts-template](https://github.com/tabmadi/ts-template) and [bgub/ts-base](https://github.com/bgub/ts-base)
+- Forked from [tabmadi/ts-template](https://github.com/tabmadi/ts-template)
+- [bgub/ts-base](https://github.com/bgub/ts-base)
 - [TypeScript Development First Steps with Bun and Modern Tooling — 2025](https://dappgenie.io/blogs/typescript-development-first-steps-with-bun-and-modern-tooling)
