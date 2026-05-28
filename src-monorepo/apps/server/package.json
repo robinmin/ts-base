@@ -5,6 +5,7 @@
     "scripts": {
         "start": "bun run src/index.ts",
         "dev": "bun --watch run src/index.ts",
+        "build": "bun build src/index.ts --target=bun --outdir=dist",
         "test": "NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots",
         "typecheck": "tsc --noEmit"
     },
