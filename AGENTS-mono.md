@@ -79,6 +79,14 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 - Throw `ORPCError('NOT_FOUND', { message })` etc. for typed errors — never generic `Error` (status codes and client discrimination rely on it).
 - Clients (`apps/web`, `apps/cli`) consume only the contract types; never reach into server internals.
 
+## Architecture decision record (binding)
+
+`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the monorepo's shape — the Turborepo + Bun-workspaces layout, the `apps/{server,web,cli}` ⁄ `packages/{api,config,db,utils}` split, oRPC contracts in `packages/api` as the single source of truth for end-to-end type safety, Hono on `Bun.serve` for the server, and the `@<scope>/*` workspace-alias boundary. Treat it as a constraint, not a suggestion:
+
+- Read it before any non-trivial change to the workspace graph, the oRPC contract layer, the server transport, or cross-package boundaries.
+- Changes that contradict a recorded decision require updating the ADR first (add a new dated entry that supersedes the old one) — never silently diverge.
+- New cross-cutting architectural choices (a new app or package, a different RPC/transport layer, a real DB swap, an auth boundary) get a new ADR entry in the same file.
+
 ## Conventions & boundaries
 
 - Conventional Commits required (`feat:`, `fix:`, `docs:`, `chore:`, ...). Breaking changes go in a `BREAKING CHANGE:` footer.

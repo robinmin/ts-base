@@ -65,6 +65,14 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 - Names describe behavior under a condition; assertions tie to the requirement, not the implementation.
 - For CLI stdout assertions, spy on `process.stdout.write` (the CLI uses it directly so output is testable without log-format coupling).
 
+## Architecture decision record (binding)
+
+`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the CLI's shape — the Turborepo + Bun-workspaces layout, the `apps/cli` ⁄ `packages/*` split, Commander as the CLI framework, the `@<scope>/*` workspace-alias boundary, and `process.stdout.write` for testable output. Treat it as a constraint, not a suggestion:
+
+- Read it before any non-trivial change to the workspace graph, the CLI command surface, or cross-package boundaries.
+- Changes that contradict a recorded decision require updating the ADR first (add a new dated entry that supersedes the old one) — never silently diverge.
+- New cross-cutting architectural choices (a new workspace package, a different CLI framework, a build/publish change) get a new ADR entry in the same file.
+
 ## Conventions & boundaries
 
 - Conventional Commits required (`feat:`, `fix:`, `docs:`, `chore:`, ...). Breaking changes go in a `BREAKING CHANGE:` footer.

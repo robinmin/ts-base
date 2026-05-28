@@ -53,6 +53,14 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 - Coverage target is **line >= 90% and function >= 90% in aggregate** (`coverageThreshold` in `bunfig.toml`).
 - Names describe behavior under a condition; assertions tie to the requirement, not the implementation. Inject dependencies (e.g. the RNG in `getRandomId`) to keep tests deterministic.
 
+## Architecture decision record (binding)
+
+`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the library's shape — the three-entry split (`internal.ts` runtime-agnostic core, `index.ts` Node, `browser.ts` browser), the tsdown bundle to `dist/`, the dual npm + JSR release flow, the dependency-injected RNG for testability. Treat it as a constraint, not a suggestion:
+
+- Read it before any non-trivial change to the entry-point split, the runtime-agnostic boundary, or the bundling/release config.
+- Changes that contradict a recorded decision require updating the ADR first (add a new dated entry that supersedes the old one) — never silently diverge.
+- New cross-cutting architectural choices (a new entry point, an added runtime dependency, a new export surface) get a new ADR entry in the same file.
+
 ## Conventions & boundaries
 
 - Conventional Commits required (`feat:`, `fix:`, `docs:`, `chore:`, ...). Breaking changes go in a `BREAKING CHANGE:` footer; release-please drives versioning.

@@ -50,6 +50,14 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 - Coverage target is **line >= 90% and function >= 90% in aggregate** (`coverageThreshold` in `bunfig.toml`). Per-file thresholds are not enforced by Bun yet — review per-file coverage at PR time.
 - Names describe behavior under a condition; assertions tie to the requirement, not the implementation. Inject dependencies to keep tests deterministic.
 
+## Architecture decision record (binding)
+
+`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the application's shape — the flat single-package layout, `Bun.serve` as the HTTP runtime, the zod-validated config boundary, the zero-dependency Bun SQL data pattern. Treat it as a constraint, not a suggestion:
+
+- Read it before any non-trivial change to the server entry, config loading, or data access.
+- Changes that contradict a recorded decision require updating the ADR first (add a new dated entry that supersedes the old one) — never silently diverge.
+- New cross-cutting architectural choices (a router, a DI container, a new runtime boundary) get a new ADR entry in the same file.
+
 ## Conventions & boundaries
 
 - Conventional Commits required (`feat:`, `fix:`, `docs:`, `chore:`, ...). Breaking changes go in a `BREAKING CHANGE:` footer.
