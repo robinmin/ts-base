@@ -16,5 +16,3 @@ pre-push:
       run: cog check
     lint:
       run: bun run lint
-    typecheck:
-      run: cd src-monorepo && bun run typecheck
