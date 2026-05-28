@@ -2,5 +2,5 @@
 import { main } from './cli.js';
 
 if (import.meta.main) {
-    main(Bun.argv.slice(2));
+    await main(Bun.argv.slice(2));
 }
