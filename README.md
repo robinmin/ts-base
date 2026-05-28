@@ -108,9 +108,9 @@ type Result = { a: string } & { b: number };
 type PrettyResult = Prettify<Result>; // hovers as { a: string; b: number }
 ```
 
-## 🍳 Recipes (application mode)
+## 🍳 Recipes
 
-The default app is an intentionally minimal `Bun.serve` server. Two common upgrades:
+The default app is an intentionally minimal `Bun.serve` server. Common upgrades:
 
 ### Database — Bun native SQL
 
@@ -136,6 +136,71 @@ export default { port: config.port, fetch: app.fetch };
 ```
 
 Then `bun add hono`. Hono runs natively on `Bun.serve` and stays edge-portable.
+
+### End-to-end types with oRPC
+
+For type-safe RPC between server and client (monorepo or separate frontend), add
+[oRPC](https://orpc.dev). It combines RPC with OpenAPI, eliminates the need for
+a shared contract package, and gives you full autocompletion on both sides.
+
+```bash
+bun add @orpc/server        # server-side: define procedures
+bun add @orpc/client        # client-side: typed RPC calls
+bun add @orpc/openapi       # optional: auto-generate OpenAPI spec
+```
+
+**Define procedures** in a shared workspace package (e.g. `packages/api/src/procedures.ts`):
+
+```ts
+import { os } from "@orpc/server";
+import { z } from "@scope/utils";
+
+export const planetRouter = {
+    list: os
+        .input(z.object({ limit: z.number().min(1).max(100).optional() }))
+        .handler(async ({ input }) => [{ id: 1, name: "Earth" }]),
+
+    find: os
+        .input(z.object({ id: z.number() }))
+        .handler(async ({ input }) => ({ id: input.id, name: "Earth" })),
+};
+```
+
+**Server** — mount on the existing Hono app (`apps/server/src/app.ts`):
+
+```ts
+import { RPCHandler } from "@orpc/server/fetch";
+import { onError } from "@orpc/server";
+import { planetRouter } from "@scope/api";
+
+const handler = new RPCHandler(planetRouter, {
+    interceptors: [onError((error) => console.error(error))],
+});
+
+app.use("/rpc/*", async (c, next) => {
+    const { matched, response } = await handler.handle(c.req.raw, {
+        prefix: "/rpc",
+        context: {},
+    });
+    if (matched) return c.newResponse(response.body, response);
+    await next();
+});
+```
+
+**Client** — fully typed with no code generation:
+
+```ts
+import type { RouterClient } from "@orpc/server";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { planetRouter } from "@scope/api";
+
+const orpc: RouterClient<typeof planetRouter> = createORPCClient(
+    new RPCLink({ url: "http://localhost:3000/rpc" }),
+);
+
+const planet = await orpc.find({ id: 1 }); // fully typed — autocompletes .find, .list, etc.
+```
 
 ## 📁 Project Structure
 
