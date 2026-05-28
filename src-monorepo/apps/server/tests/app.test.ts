@@ -1,9 +1,14 @@
-import { describe, expect, it, spyOn } from 'bun:test';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import { app } from '../src/app.js';
+import { _resetPlanets } from '../src/procedures/planet.js';
 
 const rpcBody = (input: unknown) => JSON.stringify({ json: input, meta: [] });
 
 describe('server routes', () => {
+    beforeEach(() => {
+        _resetPlanets();
+    });
+
     it('GET /health returns ok', async () => {
         const res = await app.request('/health');
         expect(res.status).toBe(200);
@@ -27,18 +32,15 @@ describe('server routes', () => {
         expect(body.json).toBeArray();
     });
 
-    it('onError interceptor logs handler errors', async () => {
-        const errSpy = spyOn(console, 'error').mockImplementation(() => {});
-        try {
-            const res = await app.request('/rpc/find', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: rpcBody({ id: 999 }),
-            });
-            expect(res.status).toBe(500);
-            expect(errSpy).toHaveBeenCalled();
-        } finally {
-            errSpy.mockRestore();
-        }
+    it('POST /rpc/find returns 404 ORPCError for a missing planet', async () => {
+        const res = await app.request('/rpc/find', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: rpcBody({ id: 999 }),
+        });
+        expect(res.status).toBe(404);
+        const body = (await res.json()) as { json: { code: string; message: string } };
+        expect(body.json.code).toBe('NOT_FOUND');
+        expect(body.json.message).toBe('Planet 999 not found');
     });
 });
