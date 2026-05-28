@@ -1,4 +1,3 @@
-import { config } from '@SCOPE/config';
 import { add } from '@SCOPE/utils';
 import { Command } from 'commander';
 
@@ -14,13 +13,6 @@ export function createProgram(): Command {
         .argument('<b>', 'second number', parseIntArg)
         .action((a, b) => {
             process.stdout.write(`${add(a, b)}\n`);
-        });
-
-    program
-        .command('config')
-        .description('Show current configuration')
-        .action(() => {
-            process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
         });
 
     return program;
