@@ -4,23 +4,18 @@ describe('Configuration Tests', () => {
     let originalEnv: NodeJS.ProcessEnv;
 
     beforeEach(() => {
-        // Save the original environment
         originalEnv = { ...process.env };
     });
 
     afterEach(() => {
-        // Restore original environment
         process.env = originalEnv;
-
-        // Clear module cache to ensure fresh config loading
-        delete require.cache[require.resolve('../config.js')];
     });
 
     describe('Default Configuration', () => {
         it('should use default port 3000 when no PORT env var is set', async () => {
             process.env.PORT = undefined;
 
-            const { config } = await import('../config.js');
+            const { config } = await import('../config.ts');
 
             expect(config.port).toBe(3000);
         });
@@ -30,19 +25,17 @@ describe('Configuration Tests', () => {
         it('should use PORT environment variable when set', async () => {
             process.env.PORT = '8080';
 
-            const { config } = await import('../config.js');
+            const { config } = await import(`../config.ts?v=${crypto.randomUUID()}`);
 
             expect(config.port).toBe(8080);
         });
     });
 
     describe('Port Validation', () => {
-        it('should validate port is within valid range', () => {
+        it('should validate port is within valid range', async () => {
             process.env.PORT = '100000';
 
-            expect(async () => {
-                await import('../config.js');
-            }).toThrow();
+            await expect(import(`../config.ts?v=${crypto.randomUUID()}`)).rejects.toThrow();
         });
     });
 });
