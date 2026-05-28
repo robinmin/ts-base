@@ -2,6 +2,7 @@
 
 export type { CoreOptions } from './internal.js';
 export { add, getRandomId, greet } from './internal.js';
+export type { Prettify } from './types.js';
 
 import { randomBytes } from 'node:crypto';
 
