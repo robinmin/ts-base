@@ -1,9 +1,9 @@
 ---
 name: "@gobing-ai/ts-utils — zero-dependency utility library (date, cursor, errors, const, output, origin, access, api-response)"
 description: "@gobing-ai/ts-utils — zero-dependency utility library (date, cursor, errors, const, output, origin, access, api-response)"
-status: Backlog
+status: Done
 created_at: 2026-05-28T05:58:34.997Z
-updated_at: 2026-05-28T05:58:34.997Z
+updated_at: 2026-05-28T19:59:03Z
 folder: docs/tasks
 type: task
 feature-id: ""
@@ -11,11 +11,11 @@ priority: high
 estimated_hours: 8
 tags: ["package","utils","zero-dep"]
 impl_progress:
-  planning: pending
-  design: pending
-  implementation: pending
-  review: pending
-  testing: pending
+  planning: completed
+  design: completed
+  implementation: completed
+  review: completed
+  testing: completed
 ---
 
 ## 0013. "@gobing-ai/ts-utils — zero-dependency utility library (date, cursor, errors, const, output, origin, access, api-response)"
@@ -29,10 +29,10 @@ Extracting them into `@gobing-ai/ts-utils` de-couples the infrastructure package
 
 ### Requirements
 
-- [ ] Package published to npm as `@gobing-ai/ts-utils` (public, scoped)
-- [ ] Zero runtime dependencies — no external npm packages in `dependencies`
-- [ ] 100% TypeScript with strict mode, ESM only (`"type": "module"`)
-- [ ] Exports the following modules from a single barrel (`src/index.ts`):
+- [x] Package configured for npm publishing as `@gobing-ai/ts-utils` (public, scoped); actual registry publish remains a release workflow action
+- [x] Zero runtime dependencies — no external npm packages in `dependencies`
+- [x] 100% TypeScript with strict mode, ESM only (`"type": "module"`)
+- [x] Exports the following modules from a single barrel (`src/index.ts`):
   - `date.ts` — `fromMs`, `toMs`, `nowMs` (Date↔Unix ms conversion)
   - `cursor.ts` — `CursorData`, `encodeCursor`, `decodeCursor`, `parseCursor`, `createCursor`, `encodeCursorFromItem`, `decodeAndParseCursor`, `buildCursorMeta` (base64url cursor pagination)
   - `errors.ts` — `AppError`, `NotFoundError`, `ValidationError`, `ConflictError`, `InternalError`, `isAppError` type guard, local `ErrorCode` type/value; no import from `@spur/contracts`
@@ -41,8 +41,8 @@ Extracting them into `@gobing-ai/ts-utils` de-couples the infrastructure package
   - `origin.ts` — `getValidatedOrigin`, `isAllowedOrigin`, `matchOriginPattern` (CORS origin validation)
   - `access.ts` — `getRoles`, `hasRole` (role-based access check)
   - `api-response.ts` — `ApiEnvelope<T>`, `ApiSuccessEnvelope<T>`, `ApiErrorEnvelope`, `API_ERROR_CODES`, `successResponse`, `errorResponse`, `paginatedResponse`, `notFoundResponse`, `validationErrorResponse`, `badRequestResponse`, `unauthorizedResponse`, `forbiddenResponse`, `conflictResponse`, `internalErrorResponse`, `infoResponse`
-- [ ] Tests ≥ 90% line + function coverage per file
-- [ ] Biome formatting + linting pass; `tsc --noEmit` clean
+- [x] Tests ≥ 90% line + function coverage per file
+- [x] Biome formatting + linting pass; `tsc --noEmit` clean
 
 
 
@@ -51,6 +51,15 @@ Extracting them into `@gobing-ai/ts-utils` de-couples the infrastructure package
 
 
 ### Design
+
+Implemented as a flat, zero-runtime-dependency utility package under `~/xprojects/ts-libs/packages/utils`.
+
+Design choices:
+- Keep each old Spur utility as a direct module with no package-barrel imports inside implementation files.
+- Use extensioned relative imports (`./date.js`) so emitted ESM remains valid under bundler resolution.
+- Define `ErrorCode` locally in `errors.ts` as both a runtime value and a TypeScript union type, removing the old `@spur/contracts` dependency.
+- Trim `const.ts` to shared category constants only; no Spur-specific `LOG_FILE_PATH`.
+- Keep output helpers injectable through `WriteTarget`/`BufferTarget` to preserve testability without touching global process streams.
 
 
 
@@ -103,7 +112,9 @@ packages/utils/
     └── api-response.test.ts
 ```
 
-Tests are copied from `~/xprojects/spur/packages/core/tests/` and adapted for the new import paths and Bun test runner (the old project used vitest).
+Tests are adapted from `~/xprojects/spur/packages/core/tests/` for the new import paths and Bun test runner, with an added `const.test.ts` because the old project did not have dedicated coverage for constants.
+
+Actual implementation completed in `~/xprojects/ts-libs/packages/utils` with the planned module map. The package now exports all required utilities from `src/index.ts`, has `dependencies: {}`, and keeps `publishConfig.access = "public"`.
 
 
 ### Plan
@@ -123,9 +134,82 @@ Tests are copied from `~/xprojects/spur/packages/core/tests/` and adapted for th
 
 ### Review
 
+SECU review completed after implementation:
+
+- Security: no external runtime dependencies added; origin matching remains string-based and avoids regex/ReDoS exposure.
+- Encapsulation: package internals use relative module imports only; consumers use the public barrel.
+- Correctness: behavior is covered against the extracted Spur test surface plus additional checks for `const.ts` and local `ErrorCode`.
+- UX/API: public exports match the required module list and retain stable names.
+- Drift prevention: actual npm publishing was not performed during implementation; package is release-ready through `publishConfig.access = "public"`.
+
+Verification re-audit — 2026-05-28T19:59:03Z:
+
+**Status:** PASS — 0 findings.
+**Scope:** `~/xprojects/ts-libs/packages/utils`, task `0013`.
+**Mode:** full verification, `--fix all --force`.
+**Channel:** current.
+
+### P1 — Blockers
+| # | Title | Dimension | Location | Recommendation |
+|---|-------|-----------|----------|----------------|
+| - | None | - | - | - |
+
+### P2 — Warnings
+| # | Title | Dimension | Location | Recommendation |
+|---|-------|-----------|----------|----------------|
+| - | None | - | - | - |
+
+### P3 — Info
+| # | Title | Dimension | Location | Recommendation |
+|---|-------|-----------|----------|----------------|
+| - | None | - | - | - |
+
+### P4 — Suggestions
+| # | Title | Dimension | Location | Recommendation |
+|---|-------|-----------|----------|----------------|
+| - | None | - | - | - |
+
+Static review checks:
+- No hardcoded secret/key/token/password patterns in `packages/utils`.
+- No unsafe dynamic execution, DOM injection, shell/process execution, or command execution surfaces in `packages/utils`.
+- No `any`, `as any`, TypeScript ignore comments, or Biome suppressions in `packages/utils`.
+- No stale `@spur/*` runtime imports in `packages/utils`.
+- All internal source imports use `.js` specifiers.
+
 
 
 ### Testing
+
+Verification run from `~/xprojects/ts-libs`:
+
+- `bun run format` — passed; Biome fixed 1 formatting issue.
+- `bun run lint` — passed; Biome clean and all workspace `tsc --noEmit` checks passed.
+- `bun run test` — passed; `@gobing-ai/ts-utils` 43 tests, 126 assertions, 0 failures.
+- `bun run build` — passed for all workspaces.
+- `bun run check` — passed; combined lint/typecheck/test gate clean.
+
+Coverage for `@gobing-ai/ts-utils`:
+
+| File | Functions | Lines |
+|---|---:|---:|
+| All files | 100.00% | 99.26% |
+| `src/access.ts` | 100.00% | 95.83% |
+| `src/api-response.ts` | 100.00% | 100.00% |
+| `src/const.ts` | 100.00% | 100.00% |
+| `src/cursor.ts` | 100.00% | 98.21% |
+| `src/date.ts` | 100.00% | 100.00% |
+| `src/errors.ts` | 100.00% | 100.00% |
+| `src/origin.ts` | 100.00% | 100.00% |
+| `src/output.ts` | 100.00% | 100.00% |
+
+Generated `dist/` artifacts were removed after build verification to keep the working tree pure TypeScript.
+
+Re-verification run from `~/xprojects/ts-libs` on 2026-05-28T19:59:03Z:
+
+- `bun run check` — passed; Biome clean, workspace typecheck clean, all tests pass.
+- `bun run build` — passed for all workspaces.
+- `@gobing-ai/ts-utils` coverage remained 100.00% functions / 99.26% lines, 43 tests, 126 assertions, 0 failures.
+- Generated `dist/` artifacts were removed again after build verification.
 
 
 
@@ -133,6 +217,14 @@ Tests are copied from `~/xprojects/spur/packages/core/tests/` and adapted for th
 
 | Type | Path | Agent | Date |
 | ---- | ---- | ----- | ---- |
+| Source | `~/xprojects/ts-libs/packages/utils/src/date.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/cursor.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/errors.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/const.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/output.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/origin.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/access.ts` | Codex | 2026-05-28 |
+| Source | `~/xprojects/ts-libs/packages/utils/src/api-response.ts` | Codex | 2026-05-28 |
+| Tests | `~/xprojects/ts-libs/packages/utils/tests/*.test.ts` | Codex | 2026-05-28 |
 
 ### References
-
