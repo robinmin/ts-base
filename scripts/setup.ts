@@ -5,16 +5,18 @@
  * scaffolding so the result looks hand-written, not templated.
  *
  * Usage:
- *   bun run setup                                # interactive prompt
- *   bun run setup --mode=app                     # non-interactive mode select
- *   bun run setup --mode=app --no-db --no-convict  # + strip optional samples
+ *   bun run setup                              # interactive prompt
+ *   bun run setup --mode=app                   # non-interactive mode select
+ *   bun run setup --mode=app --no-db --no-config  # + strip optional samples
  *
  * Flags (app mode only):
- *   --no-db       Delete src/db.example.ts and skip the Bun SQL dependency.
- *   --no-convict  Remove convict + @types/convict and delete src/config.ts.
+ *   --no-db      Delete src/db.example.ts.
+ *   --no-config  Delete src/config.ts, drop zod dep, and rewrite src/index.ts
+ *               to read PORT directly from the environment.
  */
 import { rm } from 'node:fs/promises';
 import { $, Glob } from 'bun';
+import { APP_SCRIPTS, LIB_SCRIPTS } from './_modes.js';
 
 type Mode = 'app' | 'lib' | 'cli' | 'mono';
 
@@ -54,12 +56,12 @@ async function resolveMode(): Promise<Mode> {
     fail('no mode selected');
 }
 
-type CleanupFlags = { noDb: boolean; noConvict: boolean };
+type CleanupFlags = { noDb: boolean; noConfig: boolean };
 
 function parseCleanupFlags(): CleanupFlags {
     return {
         noDb: process.argv.includes('--no-db'),
-        noConvict: process.argv.includes('--no-convict'),
+        noConfig: process.argv.includes('--no-config'),
     };
 }
 
@@ -82,44 +84,41 @@ async function writePackageJson(pkg: PackageJson): Promise<void> {
     await Bun.write(`${ROOT}/package.json`, `${JSON.stringify(pkg, null, 4)}\n`);
 }
 
-const APP_SCRIPTS = {
-    prepare: 'lefthook install',
-    start: 'bun run src/index.ts',
-    dev: 'bun --watch run src/index.ts',
-    test: 'NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots',
-    'test:full': 'NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=.coverage',
-    typecheck: 'tsc --noEmit',
-    lint: 'biome check . && bun run typecheck',
-    format: 'biome check . --write',
-    autofix: 'bun run format && bun run typecheck',
-};
+// Drop-in replacement for src/index.ts when --no-config strips src/config.ts.
+// Keeps the same single-route Bun.serve shape with PORT read from the env.
+const MINIMAL_APP_ENTRY = `const server = Bun.serve({
+    port: Number(process.env.PORT ?? 3000),
+    fetch(request) {
+        const url = new URL(request.url);
 
-const LIB_SCRIPTS = {
-    prepare: 'lefthook install',
-    build: 'tsdown',
-    dev: 'tsdown --watch',
-    test: 'NODE_ENV=test bun test --coverage --coverage-dir=.coverage --reporter=dots',
-    'test:full': 'NODE_ENV=test bun test --update-snapshots --coverage --coverage-dir=.coverage',
-    typecheck: 'tsc --noEmit',
-    lint: 'biome check . && bun run typecheck',
-    format: 'biome check . --write',
-    autofix: 'bun run format && bun run typecheck',
-    size: 'size-limit',
-};
+        if (url.pathname === '/health') {
+            return new Response(
+                JSON.stringify({
+                    status: 'ok',
+                    timestamp: new Date().toISOString(),
+                    uptime: process.uptime(),
+                }),
+                {
+                    headers: { 'Content-Type': 'application/json' },
+                },
+            );
+        }
+
+        return new Response(null, { status: 404 });
+    },
+});
+
+console.info(\`Server running at http://localhost:\${server.port}\`);
+`;
 
 function patchApp(pkg: PackageJson, flags: CleanupFlags): void {
     pkg.scripts = APP_SCRIPTS;
     pkg.private = true;
 
-    if (flags.noConvict) {
-        if (pkg.dependencies) {
-            delete pkg.dependencies.convict;
-            if (Object.keys(pkg.dependencies).length === 0) {
-                delete pkg.dependencies;
-            }
-        }
-        if (pkg.devDependencies?.['@types/convict']) {
-            delete pkg.devDependencies['@types/convict'];
+    if (flags.noConfig && pkg.dependencies?.zod) {
+        delete pkg.dependencies.zod;
+        if (Object.keys(pkg.dependencies).length === 0) {
+            delete pkg.dependencies;
         }
     }
 }
@@ -146,9 +145,9 @@ function patchLib(pkg: PackageJson): void {
     pkg.files = ['dist'];
     pkg['size-limit'] = [{ path: 'dist/browser.js', limit: '3.5 KB' }];
 
-    // convict is an application concern; libraries should not carry it.
-    if (pkg.dependencies) {
-        delete pkg.dependencies.convict;
+    // zod is an application concern; libraries should not bundle it.
+    if (pkg.dependencies?.zod) {
+        delete pkg.dependencies.zod;
         if (Object.keys(pkg.dependencies).length === 0) {
             delete pkg.dependencies;
         }
@@ -159,9 +158,6 @@ function patchLib(pkg: PackageJson): void {
         'size-limit': '^11',
         tsdown: '^0.15.0',
     };
-    if (pkg.devDependencies['@types/convict']) {
-        delete pkg.devDependencies['@types/convict'];
-    }
     // Published library: declare the TS version range consumers must compile against.
     pkg.peerDependencies = {
         ...pkg.peerDependencies,
@@ -169,20 +165,25 @@ function patchLib(pkg: PackageJson): void {
     };
 }
 
-async function writeJson(path: string, value: unknown): Promise<void> {
-    // 4-space indent matches biome.json's formatter so `bun run lint` stays clean.
-    await Bun.write(`${ROOT}/${path}`, `${JSON.stringify(value, null, 4)}\n`);
-}
-
+// Promotes the lib's release-config scaffolds (checked in under src-lib/, now
+// at src/ after the mv) up to the repo root, substituting placeholders. Keeping
+// these as on-disk files instead of inlined JSON makes them reviewable as PRs.
 async function writeLibExtras(): Promise<void> {
     const pkg = await readPackageJson();
-    await writeJson('release-please-config.json', { 'release-type': 'node', packages: { '.': {} } });
-    await writeJson('.release-please-manifest.json', { '.': pkg.version ?? '0.0.0' });
-    await writeJson('jsr.json', {
-        name: pkg.name,
-        version: pkg.version ?? '0.0.0',
-        exports: { '.': './src/index.ts', './browser': './src/browser.ts' },
-    });
+    const version = (pkg.version as string | undefined) ?? '0.0.0';
+    const scope = deriveScope(pkg.name);
+    const moves: Array<[string, (text: string) => string]> = [
+        ['release-please-config.json', (t) => t],
+        ['.release-please-manifest.json', (t) => t.replaceAll('0.0.0', version)],
+        ['jsr.json', (t) => t.replaceAll('@SCOPE/', `@${scope}/`).replaceAll('0.0.0', version)],
+    ];
+    for (const [name, transform] of moves) {
+        const srcPath = `${ROOT}/src/${name}`;
+        const destPath = `${ROOT}/${name}`;
+        const text = await Bun.file(srcPath).text();
+        await Bun.write(destPath, transform(text));
+        await rm(srcPath, { force: true });
+    }
 }
 
 async function moveWorkflows(mode: Mode): Promise<void> {
@@ -202,35 +203,28 @@ async function promoteTsconfig(mode: 'app' | 'lib'): Promise<void> {
     await Bun.write(`${ROOT}/tsconfig.json`, text);
     await rm(`${ROOT}/tsconfig.app.json`, { force: true });
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
+    await rm(`${ROOT}/tsconfig.template.json`, { force: true });
 }
 
-// Replaces the @SCOPE placeholder in every package.json, source file, and
-// markdown doc with the project's real scope so workspace aliases resolve and
-// docs reference real package names after promotion.
+// Replaces the @SCOPE placeholder in every text file under apps/, packages/,
+// tooling/, and root-level docs/configs after promotion. A single broad sweep
+// avoids the prior whack-a-mole of per-folder globs missing vite.config.ts,
+// index.html, tooling/, deeply-nested sources, etc.
 async function applyScope(scope: string): Promise<void> {
-    const patterns = [
-        'package.json',
-        'apps/*/package.json',
-        'packages/*/package.json',
-        'apps/*/src/**/*.{ts,tsx}',
-        'apps/*/tests/**/*.{ts,tsx}',
-        'packages/*/src/**/*.ts',
-        'packages/*/tests/**/*.ts',
-        'README.md',
-        'AGENTS.md',
-        'apps/*/README.md',
-        'packages/*/README.md',
-    ];
+    const patterns = ['apps/**/*', 'packages/**/*', 'tooling/**/*', '*.{json,md,ts,tsx,html}'];
     const seen = new Set<string>();
     for (const pattern of patterns) {
+        // Glob's default scan returns files only, not directories.
         for await (const rel of new Glob(pattern).scan({ cwd: ROOT })) {
-            if (seen.has(rel)) {
+            if (seen.has(rel) || rel.includes('node_modules/') || rel.includes('.turbo/')) {
                 continue;
             }
             seen.add(rel);
             const path = `${ROOT}/${rel}`;
             const text = await Bun.file(path).text();
-            await Bun.write(path, text.replaceAll('@SCOPE/', `@${scope}/`));
+            if (text.includes('@SCOPE/')) {
+                await Bun.write(path, text.replaceAll('@SCOPE/', `@${scope}/`));
+            }
         }
     }
 }
@@ -239,10 +233,14 @@ async function setupWorkspace(mode: 'cli' | 'mono', scope: string): Promise<void
     const srcDir = mode === 'cli' ? 'src-cli' : 'src-monorepo';
     const srcRoot = `${ROOT}/${srcDir}`;
 
-    // Promote the workspace contents up to the repo root.
-    for (const entry of ['apps', 'packages', 'tooling', 'turbo.json']) {
+    // Promote the workspace contents up to the repo root. `tooling/` is
+    // copied with -L so symlinked tsconfig presets (used to dedupe across
+    // src-cli and src-monorepo at template-authoring time) materialize into
+    // real files in the promoted project.
+    for (const entry of ['apps', 'packages', 'turbo.json']) {
         await $`mv ${srcRoot}/${entry} ${ROOT}/${entry}`.quiet();
     }
+    await $`cp -RL ${srcRoot}/tooling ${ROOT}/tooling`.quiet();
     // The workspace root package.json becomes the project's, carrying the
     // project name forward.
     const flatPkg = await readPackageJson();
@@ -258,6 +256,7 @@ async function setupWorkspace(mode: 'cli' | 'mono', scope: string): Promise<void
     await rm(`${ROOT}/tsconfig.json`, { force: true });
     await rm(`${ROOT}/tsconfig.app.json`, { force: true });
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
+    await rm(`${ROOT}/tsconfig.template.json`, { force: true });
     await rm(`${ROOT}/tsdown.config.ts`, { force: true });
 
     await applyScope(scope);
@@ -281,8 +280,11 @@ async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void
         if (flags.noDb) {
             await rm(`${ROOT}/src/db.example.ts`, { force: true });
         }
-        if (flags.noConvict) {
+        if (flags.noConfig) {
             await rm(`${ROOT}/src/config.ts`, { force: true });
+            // src/index.ts imports ./config.js. Replace it with an env-only
+            // fallback so the resulting app boots without that module.
+            await Bun.write(`${ROOT}/src/index.ts`, MINIMAL_APP_ENTRY);
         }
     }
 
@@ -320,25 +322,50 @@ async function main(): Promise<void> {
         await setupFlat(mode, flags);
     }
 
-    // Swap in the mode-specific AGENTS.md if one exists.
+    // Drop the unused mode-specific AGENTS scaffolds, then swap the chosen one
+    // into place. Doing this before promotion would skip the source-of-truth
+    // copy, so it runs last.
+    for (const m of ['app', 'lib', 'cli', 'mono']) {
+        if (m === mode) continue;
+        await rm(`${ROOT}/AGENTS-${m}.md`, { force: true });
+    }
     const agentsSrc = `${ROOT}/AGENTS-${mode}.md`;
     if (await Bun.file(agentsSrc).exists()) {
         await $`mv ${agentsSrc} ${ROOT}/AGENTS.md`.quiet();
     }
 
     // Wire the .agents/skills symlink so multi-agent tooling (claude, codex, pi, …)
-    // shares a single skill tree without copying.
-    await $`mkdir -p ${ROOT}/.agents`.quiet();
-    await $`ln -sf ../.claude/skills ${ROOT}/.agents/skills`.quiet();
+    // shares a single skill tree without copying. Only create it when the
+    // target actually exists, otherwise the result is a dangling symlink that
+    // confuses tools and `git status`.
+    if (await Bun.file(`${ROOT}/.claude/skills`).exists()) {
+        await $`mkdir -p ${ROOT}/.agents`.quiet();
+        await $`ln -sf ../.claude/skills ${ROOT}/.agents/skills`.quiet();
+    }
 
-    // Remove the setup script and its package.json entry — the job is done.
+    // Drop the template lockfile. It carried deps for every mode (convict,
+    // tsdown, size-limit, …) which patchApp/patchLib have just edited away.
+    // The user runs `bun install` next and gets a fresh, mode-specific lock.
+    await rm(`${ROOT}/bun.lock`, { force: true });
+
+    // Remove the template-only scripts first, then strip their package.json
+    // entries. If the process dies between, leftover `bun run …` calls produce
+    // a clear "module not found" instead of silently re-running stale code.
+    for (const f of ['setup.ts', '_modes.ts', 'clean.ts', 'test-setup.ts', 'ensure-scaffold-installs.ts']) {
+        await rm(`${ROOT}/scripts/${f}`, { force: true });
+    }
+    await $`rmdir ${ROOT}/scripts`.quiet().nothrow();
     const finalPkg = await readPackageJson();
-    if (finalPkg.scripts?.setup) {
-        delete finalPkg.scripts.setup;
+    let changed = false;
+    for (const entry of ['setup', 'clean', 'test:setup', 'pretest']) {
+        if (finalPkg.scripts?.[entry]) {
+            delete finalPkg.scripts[entry];
+            changed = true;
+        }
+    }
+    if (changed) {
         await writePackageJson(finalPkg);
     }
-    await rm(`${ROOT}/scripts/setup.ts`, { force: true });
-    await $`rmdir ${ROOT}/scripts`.quiet().nothrow();
 
     console.info(`\nDone. ${mode} mode is wired up.`);
     console.info('Next: bun install && bun run test');
