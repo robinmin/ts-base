@@ -20,5 +20,5 @@
         "noUnusedParameters": true,
         "noPropertyAccessFromIndexSignature": false
     },
-    "include": ["src", "tsdown.config.ts"]
+    "include": ["src"]
 }
