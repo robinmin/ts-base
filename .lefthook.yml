@@ -7,7 +7,7 @@ pre-commit:
   parallel: true
   commands:
     format:
-      glob: "*.{js,ts,tsx,jsx,json,md}"
+      glob: "*.{js,ts,tsx,jsx,json}"
       run: bun run format
 
 pre-push:
