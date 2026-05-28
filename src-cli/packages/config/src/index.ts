@@ -1,12 +1,12 @@
 import convict from 'convict';
 
-export interface ServerConfig {
+export interface AppConfig {
     port: number;
 }
 
-const configSchema = convict<ServerConfig>({
+const configSchema = convict<AppConfig>({
     port: {
-        doc: 'The port to bind.',
+        doc: 'The port to bind (if the CLI ever exposes a local server).',
         format: 'port',
         default: 3000,
         env: 'PORT',
