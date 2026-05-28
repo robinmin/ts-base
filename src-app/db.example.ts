@@ -16,19 +16,24 @@ export interface User {
     email: string;
 }
 
-// Reads the connection string from $DATABASE_URL by default; pass one explicitly
-// if you prefer. Lazily connects on first query.
-const sql = new SQL(process.env.DATABASE_URL ?? '');
+// Lazily connects on first query — no connection is made until the first
+// tagged template call, so setting DATABASE_URL after import works.
+let _client: SQL | undefined;
+
+function sql(): SQL {
+    _client ??= new SQL(process.env.DATABASE_URL ?? '');
+    return _client;
+}
 
 export async function findUserByEmail(email: string): Promise<User | undefined> {
     // `email` is bound as a parameter, not string-interpolated.
-    const rows = await sql<User[]>`SELECT id, email FROM users WHERE email = ${email} LIMIT 1`;
+    const rows = await sql()<User[]>`SELECT id, email FROM users WHERE email = ${email} LIMIT 1`;
     return rows[0];
 }
 
 export async function createUser(email: string): Promise<User> {
-    const [user] = await sql<User[]>`
-        INSERT INTO users ${sql({ email })}
+    const [user] = await sql()<User[]>`
+        INSERT INTO users ${sql()({ email })}
         RETURNING id, email
     `;
     if (!user) {
@@ -38,5 +43,5 @@ export async function createUser(email: string): Promise<User> {
 }
 
 export async function close(): Promise<void> {
-    await sql.close();
+    await sql().close();
 }
