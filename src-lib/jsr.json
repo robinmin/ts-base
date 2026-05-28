@@ -1,0 +1,8 @@
+{
+    "name": "@SCOPE/lib",
+    "version": "0.0.0",
+    "exports": {
+        ".": "./src/index.ts",
+        "./browser": "./src/browser.ts"
+    }
+}
