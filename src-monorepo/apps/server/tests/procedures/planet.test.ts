@@ -20,8 +20,8 @@ describe('planet procedures', () => {
     it('listPlanet — lists all planets with defaults', async () => {
         const result = await listPlanet({ cursor: 0 });
         expect(result).toHaveLength(2);
-        expect(result[0].name).toBe('Earth');
-        expect(result[1].name).toBe('Mars');
+        expect(result[0]?.name).toBe('Earth');
+        expect(result[1]?.name).toBe('Mars');
     });
 
     it('listPlanet — respects limit', async () => {
@@ -32,7 +32,7 @@ describe('planet procedures', () => {
     it('listPlanet — respects cursor offset', async () => {
         const result = await listPlanet({ cursor: 1, limit: 10 });
         expect(result).toHaveLength(1);
-        expect(result[0].name).toBe('Mars');
+        expect(result[0]?.name).toBe('Mars');
     });
 
     it('findPlanet — finds a planet by id', async () => {
