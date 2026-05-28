@@ -39,6 +39,11 @@ bunx degit robinmin/ts-base $PROJECT_NAME && cd $PROJECT_NAME
 # folder to src/; monorepo mode promotes src-monorepo/ to the root. The unused
 # scaffolds are removed, the matching scripts/deps/CI are wired up, then setup
 # deletes itself.
+#
+# For monorepo mode, the @SCOPE/ placeholder in every workspace is replaced with
+# your project's scope, derived from the "name" field in package.json. If you
+# want a custom scope (e.g. @myorg/api), edit package.json → "name" before
+# running setup. Otherwise the scope defaults to the degit directory name.
 bun run setup            # interactive prompt
 # bun run setup --mode=app   # or --mode=lib | --mode=mono, non-interactive
 
@@ -137,23 +142,6 @@ export default { port: config.port, fetch: app.fetch };
 
 Then `bun add hono`. Hono runs natively on `Bun.serve` and stays edge-portable.
 
-### End-to-end types with oRPC (monorepo)
-
-The monorepo mode ships with [oRPC](https://orpc.dev) already wired in, using the
-contract-first pattern. Contracts live in `packages/api`, shared by server and
-every client — full autocompletion on both sides, no code generation.
-
-```
-packages/api/src/contracts/planet.ts   # Zod schemas + contracts (source of truth)
-apps/server/src/procedures/planet.ts   # contract implementations (in-memory demo)
-apps/server/src/app.ts                 # Hono + RPCHandler mounted at /rpc
-apps/web/src/orpc.ts                   # typed client (createORPCClient + RPCLink)
-apps/cli/src/orpc.ts                   # same typed client for server→server calls
-```
-
-The `/health` route stays as a vanilla Hono route — not every endpoint needs to be RPC.
-Replace the in-memory store in `procedures/planet.ts` with a real DB when you're ready.
-
 ## 📁 Project Structure
 
 Before `bun run setup` the template ships all three modes side by side:
@@ -199,8 +187,10 @@ deps, and CI are wired into `package.json` and `.github/workflows/`.
 
 ## 📋 Customization
 
-1. Run `bun run setup` to choose application, library, or monorepo mode.
-2. Update `name` and metadata in `package.json` (the monorepo derives its `@scope/` from the root name).
+1. Edit `"name"` in `package.json` to set your project's scope. The monorepo setup
+   replaces every `@SCOPE/` placeholder with `@<your-name>/` during promotion, so
+   the name you pick here becomes the workspace scope (e.g. `@myorg/api`).
+2. Run `bun run setup` to choose application, library, or monorepo mode.
 3. Replace `src/` (or the `apps/` + `packages/` workspaces) with your own code.
 4. Adjust `tsconfig.json` / `biome.json` as needed.
 5. Rewrite this README for your project.
