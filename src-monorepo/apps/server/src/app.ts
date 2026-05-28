@@ -1,14 +1,23 @@
+import { onError } from '@orpc/server';
+import { RPCHandler } from '@orpc/server/fetch';
 import { Hono } from 'hono';
-import { type Post, totalLikes } from '../../../packages/api/src/index.js';
+import { router } from './procedures/planet.js';
 
 export const app = new Hono();
 
+// Health check — vanilla Hono route, not an RPC procedure.
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
-app.get('/posts/likes', (c) => {
-    const posts: Post[] = [
-        { id: 1, title: 'Bun + Hono', likes: 12 },
-        { id: 2, title: 'Monorepo', likes: 30 },
-    ];
-    return c.json({ total: totalLikes(posts) });
+// oRPC handler — all contracts served under /rpc.
+const handler = new RPCHandler(router, {
+    interceptors: [onError((error) => console.error(error))],
+});
+
+app.use('/rpc/*', async (c, next) => {
+    const { matched, response } = await handler.handle(c.req.raw, {
+        prefix: '/rpc',
+        context: {},
+    });
+    if (matched) return c.newResponse(response.body, response);
+    await next();
 });
