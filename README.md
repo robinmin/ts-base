@@ -51,8 +51,8 @@ bun run setup            # interactive prompt
 # Install bun, biome, cog, lefthook + project deps + Git hooks
 proto use && bun install
 
-# possible Initialization for further development
-git init && tasks init && spur init
+# Initialize a fresh git repo (the template ships unconnected)
+git init && git add . && git commit -m "chore: initial commit"
 ```
 
 ### Run
