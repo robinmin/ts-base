@@ -1,4 +1,4 @@
 {
     "extends": "../../tooling/typescript/cli.json",
-    "include": ["src"]
+    "include": ["src", "tests"]
 }
