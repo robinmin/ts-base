@@ -22,7 +22,7 @@ describe('server routes', () => {
             body: rpcBody({ cursor: 0 }),
         });
         expect(res.status).toBe(200);
-        const body = await res.json();
+        const body = (await res.json()) as { json: unknown };
         expect(body).toHaveProperty('json');
         expect(body.json).toBeArray();
     });
