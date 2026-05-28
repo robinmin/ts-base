@@ -1,26 +1,26 @@
+import { config } from '@SCOPE/config';
+import { add } from '@SCOPE/utils';
 import { Command } from 'commander';
-import { config } from '../../../packages/config/src/index.js';
-import { add } from '../../../packages/utils/src/index.js';
-// import { config } from '@SCOPE/config';
-// import { add } from '@SCOPE/utils';
 
 export function createProgram(): Command {
     const program = new Command().name('cli').description('Example CLI application').version('0.0.0');
 
+    const parseIntArg = (v: string): number => Number.parseInt(v, 10);
+
     program
         .command('add')
         .description('Add two numbers')
-        .argument('<a>', 'first number', parseInt)
-        .argument('<b>', 'second number', parseInt)
+        .argument('<a>', 'first number', parseIntArg)
+        .argument('<b>', 'second number', parseIntArg)
         .action((a, b) => {
-            console.log(add(a, b));
+            process.stdout.write(`${add(a, b)}\n`);
         });
 
     program
         .command('config')
         .description('Show current configuration')
         .action(() => {
-            console.log(JSON.stringify(config, null, 2));
+            process.stdout.write(`${JSON.stringify(config, null, 2)}\n`);
         });
 
     return program;
