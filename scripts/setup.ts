@@ -334,6 +334,18 @@ async function main(): Promise<void> {
         await $`mv ${agentsSrc} ${ROOT}/AGENTS.md`.quiet();
     }
 
+    // Same swap for the architecture decision record: keep the chosen mode's
+    // ADR as the binding docs/00_ADR.md, drop the rest. The kept ADR is the
+    // architectural contract the AGENTS.md guidance points back to.
+    for (const m of ['app', 'lib', 'cli', 'mono']) {
+        if (m === mode) continue;
+        await rm(`${ROOT}/docs/00_ADR-${m}.md`, { force: true });
+    }
+    const adrSrc = `${ROOT}/docs/00_ADR-${mode}.md`;
+    if (await Bun.file(adrSrc).exists()) {
+        await $`mv ${adrSrc} ${ROOT}/docs/00_ADR.md`.quiet();
+    }
+
     // Wire the .agents/skills symlink so multi-agent tooling (claude, codex, pi, …)
     // shares a single skill tree without copying. Only create it when the
     // target actually exists, otherwise the result is a dangling symlink that
