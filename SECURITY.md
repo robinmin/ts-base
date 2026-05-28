@@ -31,7 +31,7 @@ security vulnerability, please follow these steps:
    security vulnerabilities
    through [GitHub's private vulnerability reporting feature](https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing/privately-reporting-a-security-vulnerability).
 3. If you're unable to use GitHub Security Advisories, you may email your
-   findings to [tabmadi@proton.me](mailto:tabmadi@proton.me) as an
+   findings to [minlongbing@gmail.com](mailto:minlongbing@gmail.com) as an
    alternative.
 
 ### What to Include
@@ -105,10 +105,8 @@ We are transparent about the current limitations of our security measures:
 
 For security-related inquiries or to report a vulnerability, please contact:
 
-- Security Email: [tabmadi@proton.me](mailto:tabmadi@proton.me)
-- Project Maintainer: [tabmadi@proton.me](mailto:tabmadi@proton.me)
-
-*Note: Replace these with your actual contact information.*
+- Security Email: [minlongbing@gmail.com](mailto:minlongbing@gmail.com)
+- Project Maintainer: [minlongbing@gmail.com](mailto:minlongbing@gmail.com)
 
 ## Acknowledgments
 
