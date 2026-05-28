@@ -1,22 +1,25 @@
 import { describe, expect, it } from 'bun:test';
-import { greetUser, type Post, totalLikes } from '../src/index.js';
+import { PlanetSchema, planetContract } from '../src/index.js';
 
-describe('totalLikes', () => {
-    it('sums likes across posts', () => {
-        const posts: Post[] = [
-            { id: 1, title: 'a', likes: 3 },
-            { id: 2, title: 'b', likes: 4 },
-        ];
-        expect(totalLikes(posts)).toBe(7);
+describe('PlanetSchema', () => {
+    it('parses a valid planet', () => {
+        const result = PlanetSchema.safeParse({ id: 1, name: 'Earth' });
+        expect(result.success).toBe(true);
+        if (result.success) {
+            expect(result.data.name).toBe('Earth');
+        }
     });
 
-    it('returns 0 for no posts', () => {
-        expect(totalLikes([])).toBe(0);
+    it('rejects a planet with missing name', () => {
+        const result = PlanetSchema.safeParse({ id: 1 });
+        expect(result.success).toBe(false);
     });
 });
 
-describe('greetUser', () => {
-    it('greets by email', () => {
-        expect(greetUser({ id: 1, email: 'a@b.com' })).toBe('Hello, a@b.com');
+describe('planetContract', () => {
+    it('has CRUD procedures', () => {
+        expect(planetContract.list).toBeDefined();
+        expect(planetContract.find).toBeDefined();
+        expect(planetContract.create).toBeDefined();
     });
 });
