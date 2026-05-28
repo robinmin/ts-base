@@ -10,8 +10,8 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@SCOPE/db": "workspace:*",
-        "@SCOPE/utils": "workspace:*"
+        "@SCOPE/utils": "workspace:*",
+        "@orpc/contract": "^1.14.3"
     },
     "devDependencies": {
         "@types/bun": "latest"
