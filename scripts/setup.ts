@@ -199,10 +199,18 @@ async function promoteTsconfig(mode: 'app' | 'lib'): Promise<void> {
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
 }
 
-// Replaces the @SCOPE placeholder in every package.json with the project's real
-// scope. Source files use relative imports and need no rewriting.
+// Replaces the @SCOPE placeholder in every package.json and source file with the
+// project's real scope so workspace aliases resolve after promotion.
 async function applyScope(scope: string): Promise<void> {
-    const patterns = ['package.json', 'apps/*/package.json', 'packages/*/package.json'];
+    const patterns = [
+        'package.json',
+        'apps/*/package.json',
+        'packages/*/package.json',
+        'apps/*/src/**/*.{ts,tsx}',
+        'apps/*/tests/**/*.{ts,tsx}',
+        'packages/*/src/**/*.ts',
+        'packages/*/tests/**/*.ts',
+    ];
     const seen = new Set<string>();
     for (const pattern of patterns) {
         for await (const rel of new Glob(pattern).scan({ cwd: ROOT })) {
