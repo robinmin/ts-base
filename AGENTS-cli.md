@@ -10,8 +10,7 @@ Bun + TypeScript + Biome CLI built on Commander, with shared workspace packages.
 apps/
   cli/          # Commander-based CLI entry (the binary)
 packages/
-  config/       # convict-based configuration
-  utils/        # shared utilities (add, Prettify, zod re-export)
+  utils/        # shared utilities (add, zod re-export)
 tooling/
   typescript/   # shared tsconfig presets
 turbo.json      # Turborepo task graph
@@ -48,7 +47,7 @@ bun run build      # turbo run build (all workspaces with a build script)
 bun run dev        # turbo run dev (watch / runs the CLI)
 ```
 
-CLI binary: `apps/cli` exposes `bin: { cli: "./src/index.ts" }`. After `bun run build`, the bundled binary lives at `apps/cli/dist/index.js`.
+CLI binary: `apps/cli` exposes `bin: { cli: "./src/index.ts" }`. The `.ts` entry runs only under Bun — plain `node` cannot resolve it. After `bun run build`, the bundled binary lives at `apps/cli/dist/index.js`; if you intend to ship the CLI for Node consumers, repoint `bin` to `./dist/index.js` and run `bun run build` before publishing.
 
 ## Verification gate (all must pass before "done")
 
