@@ -10,34 +10,35 @@ describe('cli', () => {
         expect(configCmd).toBeDefined();
     });
 
-    it('add command prints the sum', () => {
-        const spy = mock(() => {});
-        const original = console.log;
-        console.log = spy;
+    it('add command writes the sum to stdout', () => {
+        const spy = mock((_chunk: string | Uint8Array) => true);
+        const original = process.stdout.write.bind(process.stdout);
+        process.stdout.write = spy as typeof process.stdout.write;
 
         try {
             const program = createProgram();
             program.parse(['add', '3', '4'], { from: 'user' });
-            expect(spy).toHaveBeenCalledWith(7);
+            expect(spy).toHaveBeenCalledWith('7\n');
         } finally {
-            console.log = original;
+            process.stdout.write = original;
         }
     });
 
-    it('config command prints the config', () => {
-        const spy = mock(() => {});
-        const original = console.log;
-        console.log = spy;
+    it('config command writes the config JSON to stdout', () => {
+        const spy = mock((_chunk: string | Uint8Array) => true);
+        const original = process.stdout.write.bind(process.stdout);
+        process.stdout.write = spy as typeof process.stdout.write;
 
         try {
             const program = createProgram();
             program.parse(['config'], { from: 'user' });
             expect(spy).toHaveBeenCalledTimes(1);
-            // Verify JSON output is valid
-            const output = JSON.parse(spy.mock.calls[0][0]);
+            const firstCall = spy.mock.calls[0];
+            expect(firstCall).toBeDefined();
+            const output = JSON.parse(firstCall?.[0] as string);
             expect(output.port).toBe(3000);
         } finally {
-            console.log = original;
+            process.stdout.write = original;
         }
     });
 });
