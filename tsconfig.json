@@ -6,7 +6,6 @@
         "target": "ESNext",
         "module": "Preserve",
         "moduleDetection": "force",
-        "jsx": "react-jsx",
         "allowJs": true,
         "moduleResolution": "bundler",
         "allowImportingTsExtensions": true,
@@ -21,5 +20,5 @@
         "noUnusedParameters": true,
         "noPropertyAccessFromIndexSignature": false
     },
-    "include": ["src-app", "src-lib", "scripts"]
+    "include": ["scripts"]
 }
