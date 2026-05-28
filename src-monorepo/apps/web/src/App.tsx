@@ -1,11 +1,6 @@
+import type { Planet } from '@SCOPE/api';
 import { useEffect, useState } from 'react';
 import { orpc } from './orpc.js';
-
-interface Planet {
-    id: number;
-    name: string;
-    description?: string;
-}
 
 export function App() {
     const [planets, setPlanets] = useState<Planet[]>([]);
