@@ -6,9 +6,9 @@ commit-msg:
 pre-commit:
   parallel: true
   commands:
-    lint:
-      glob: "*.{js,ts,tsx,jsx}"
-      run: bun run lint
+    format:
+      glob: "*.{js,ts,tsx,jsx,json,md}"
+      run: bun run format
 
 pre-push:
   commands:
@@ -16,3 +16,5 @@ pre-push:
       run: cog check
     lint:
       run: bun run lint
+    typecheck:
+      run: cd src-monorepo && bun run typecheck
