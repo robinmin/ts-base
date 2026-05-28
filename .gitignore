@@ -137,3 +137,6 @@ dist
 
 /vendors
 .agents
+
+# Turbo cache
+.turbo
