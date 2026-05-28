@@ -1,25 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import { describe, expect, it } from 'bun:test';
+import { loadConfig } from '../src/index.js';
 
-describe('config', () => {
-    let originalEnv: NodeJS.ProcessEnv;
-
-    beforeEach(() => {
-        originalEnv = { ...process.env };
+describe('loadConfig', () => {
+    it('defaults to port 3000 when PORT is unset', () => {
+        expect(loadConfig({}).port).toBe(3000);
     });
 
-    afterEach(() => {
-        process.env = originalEnv;
-    });
-
-    it('defaults to port 3000 when PORT is unset', async () => {
-        process.env.PORT = undefined;
-        const mod = await import('../src/index.ts');
-        expect(mod.config.port).toBe(3000);
-    });
-
-    it('reads the PORT environment variable', async () => {
-        process.env.PORT = '8080';
-        const mod = await import(`../src/index.ts?v=${crypto.randomUUID()}`);
-        expect(mod.config.port).toBe(8080);
+    it('reads the PORT environment variable', () => {
+        expect(loadConfig({ PORT: '8080' }).port).toBe(8080);
     });
 });
