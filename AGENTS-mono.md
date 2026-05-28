@@ -13,7 +13,7 @@ apps/
   cli/          # Bun CLI, oRPC client
 packages/
   api/          # shared oRPC contracts + types (planet schema)
-  config/       # convict-based configuration
+  config/       # zod-based configuration
   db/           # Bun native SQL data access
   utils/        # shared utilities + zod re-export
 tooling/
@@ -52,7 +52,9 @@ bun run build      # turbo run build (server bundle, web Vite build, cli bundle)
 bun run dev        # turbo run dev (parallel: server + web + cli)
 ```
 
-Default dev ports: server `3000`, web `5173`. The web client reads `VITE_API_URL` (falls back to `http://localhost:3000/rpc`).
+Default dev ports: server `3000`, web `5173`. The web client reads `VITE_API_URL` (falls back to `http://localhost:3000/rpc`); the CLI reads `API_URL`. See each app's `.env.example`.
+
+CLI binary: `apps/cli` exposes `bin: { cli: "./src/index.ts" }` — the `.ts` entry runs only under Bun. To ship for Node consumers, repoint `bin` to `./dist/index.js` and run `bun run build` before publishing.
 
 ## Verification gate (all must pass before "done")
 
