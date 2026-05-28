@@ -7,7 +7,7 @@ Guidance for AI coding agents working in this repository. `CLAUDE.md` and `GEMIN
 Bun + TypeScript + Biome application. Flat single-package layout — `src/` is the source root, `tests/` sits alongside.
 
 - **Runtime:** `Bun.serve` HTTP server. Prefer `bun:*` APIs over `node:*` unless Bun lacks the API.
-- **Package manager / test runner:** Bun `1.3.13`. No npm/pnpm/yarn.
+- **Package manager / test runner:** Bun `1.3.14`. No npm/pnpm/yarn.
 - **Lint + format:** Biome `2.4.16`. No ESLint, no Prettier.
 - **Tool versions:** pinned in `.prototools` via [proto](https://moonrepo.dev/proto). Run `proto use` to install.
 - **Git hooks:** Lefthook. **Conventional commits:** cocogitto (`cog`).
@@ -47,7 +47,7 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 ## Testing
 
 - Tests live in `tests/` next to the code (`src/tests/*.test.ts`), using `bun:test`.
-- Coverage target is per-file **line >= 90% and function >= 90%** (enforced by `coverageThreshold` in `bunfig.toml`).
+- Coverage target is **line >= 90% and function >= 90% in aggregate** (`coverageThreshold` in `bunfig.toml`). Per-file thresholds are not enforced by Bun yet — review per-file coverage at PR time.
 - Names describe behavior under a condition; assertions tie to the requirement, not the implementation. Inject dependencies to keep tests deterministic.
 
 ## Conventions & boundaries
