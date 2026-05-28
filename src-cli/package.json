@@ -2,7 +2,7 @@
     "name": "@SCOPE/root",
     "type": "module",
     "private": true,
-    "packageManager": "bun@1.3.13",
+    "packageManager": "bun@1.3.14",
     "workspaces": [
         "apps/*",
         "packages/*"
@@ -20,8 +20,5 @@
     "devDependencies": {
         "@types/bun": "latest",
         "turbo": "^2.9.14"
-    },
-    "peerDependencies": {
-        "typescript": "^6"
     }
 }
