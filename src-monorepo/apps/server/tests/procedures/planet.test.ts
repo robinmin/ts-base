@@ -1,46 +1,64 @@
-import { describe, expect, it } from 'bun:test';
-import { createPlanet, findPlanet, listPlanet } from '../../src/procedures/planet.js';
+import { beforeEach, describe, expect, it } from 'bun:test';
+import { _resetPlanets, createPlanet, findPlanet, listPlanet } from '../../src/procedures/planet.js';
 
 describe('planet procedures', () => {
-    // Seed the in-memory store so list/find have data to work with.
-    // Tests run sequentially within the file, so ordering is deterministic.
-    it('createPlanet — creates and returns a planet with auto-id', async () => {
-        const planet = await createPlanet({ name: 'Earth' });
-        expect(planet.id).toBe(1);
-        expect(planet.name).toBe('Earth');
+    beforeEach(() => {
+        _resetPlanets();
     });
 
-    it('createPlanet — creates a second planet', async () => {
-        const planet = await createPlanet({ name: 'Mars', description: 'Red planet' });
-        expect(planet.id).toBe(2);
-        expect(planet.name).toBe('Mars');
-        expect(planet.description).toBe('Red planet');
+    describe('createPlanet', () => {
+        it('creates and returns a planet with auto-id', async () => {
+            const planet = await createPlanet({ name: 'Earth' });
+            expect(planet.id).toBe(1);
+            expect(planet.name).toBe('Earth');
+        });
+
+        it('increments id for each subsequent planet', async () => {
+            await createPlanet({ name: 'Earth' });
+            const second = await createPlanet({ name: 'Mars', description: 'Red planet' });
+            expect(second.id).toBe(2);
+            expect(second.name).toBe('Mars');
+            expect(second.description).toBe('Red planet');
+        });
     });
 
-    it('listPlanet — lists all planets with defaults', async () => {
-        const result = await listPlanet({ cursor: 0 });
-        expect(result).toHaveLength(2);
-        expect(result[0]?.name).toBe('Earth');
-        expect(result[1]?.name).toBe('Mars');
+    describe('listPlanet', () => {
+        beforeEach(async () => {
+            await createPlanet({ name: 'Earth' });
+            await createPlanet({ name: 'Mars' });
+        });
+
+        it('lists all planets with defaults', async () => {
+            const result = await listPlanet({ cursor: 0 });
+            expect(result).toHaveLength(2);
+            expect(result[0]?.name).toBe('Earth');
+            expect(result[1]?.name).toBe('Mars');
+        });
+
+        it('respects limit', async () => {
+            const result = await listPlanet({ cursor: 0, limit: 1 });
+            expect(result).toHaveLength(1);
+        });
+
+        it('respects cursor offset', async () => {
+            const result = await listPlanet({ cursor: 1, limit: 10 });
+            expect(result).toHaveLength(1);
+            expect(result[0]?.name).toBe('Mars');
+        });
     });
 
-    it('listPlanet — respects limit', async () => {
-        const result = await listPlanet({ cursor: 0, limit: 1 });
-        expect(result).toHaveLength(1);
-    });
+    describe('findPlanet', () => {
+        it('finds a planet by id', async () => {
+            await createPlanet({ name: 'Earth' });
+            const planet = await findPlanet({ id: 1 });
+            expect(planet.name).toBe('Earth');
+        });
 
-    it('listPlanet — respects cursor offset', async () => {
-        const result = await listPlanet({ cursor: 1, limit: 10 });
-        expect(result).toHaveLength(1);
-        expect(result[0]?.name).toBe('Mars');
-    });
-
-    it('findPlanet — finds a planet by id', async () => {
-        const planet = await findPlanet({ id: 1 });
-        expect(planet.name).toBe('Earth');
-    });
-
-    it('findPlanet — throws for missing planet', async () => {
-        await expect(findPlanet({ id: 999 })).rejects.toThrow('Not found');
+        it('throws ORPCError NOT_FOUND for missing planet', async () => {
+            await expect(findPlanet({ id: 999 })).rejects.toMatchObject({
+                code: 'NOT_FOUND',
+                message: 'Planet 999 not found',
+            });
+        });
     });
 });
