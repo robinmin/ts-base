@@ -1,6 +1,8 @@
-import { config } from '@SCOPE/config';
-import { add } from '@SCOPE/utils';
 import { Command } from 'commander';
+import { config } from '../../../packages/config/src/index.js';
+import { add } from '../../../packages/utils/src/index.js';
+// import { config } from '@SCOPE/config';
+// import { add } from '@SCOPE/utils';
 
 export function createProgram(): Command {
     const program = new Command().name('cli').description('Example CLI application').version('0.0.0');
