@@ -34,10 +34,10 @@ Extracting them into `@gobing-ai/ts-utils` de-couples the infrastructure package
 - [ ] 100% TypeScript with strict mode, ESM only (`"type": "module"`)
 - [ ] Exports the following modules from a single barrel (`src/index.ts`):
   - `date.ts` — `fromMs`, `toMs`, `nowMs` (Date↔Unix ms conversion)
-  - `cursor.ts` — `encodeCursor`, `decodeCursor`, `parseCursor`, `createCursor`, `encodeCursorFromItem`, `buildCursorMeta` (base64url cursor pagination)
-  - `errors.ts` — `AppError`, `NotFoundError`, `ValidationError`, `ConflictError`, `InternalError`, `isAppError` type guard, `ErrorCode` type
-  - `const.ts` — `LOG_CATEGORY_APP`, `LOG_CATEGORY_CLI`, `LOG_FILE_PATH` (shared constants)
-  - `output.ts` — `echo`, `echoError` (structured stdout/stderr helpers), `WriteTarget` type
+  - `cursor.ts` — `CursorData`, `encodeCursor`, `decodeCursor`, `parseCursor`, `createCursor`, `encodeCursorFromItem`, `decodeAndParseCursor`, `buildCursorMeta` (base64url cursor pagination)
+  - `errors.ts` — `AppError`, `NotFoundError`, `ValidationError`, `ConflictError`, `InternalError`, `isAppError` type guard, local `ErrorCode` type/value; no import from `@spur/contracts`
+  - `const.ts` — `LOG_CATEGORY_APP`, `LOG_CATEGORY_CLI` only; do not export Spur-specific file paths
+  - `output.ts` — `echo`, `echoError`, `setDefaultOutputTargets`, `createBufferTarget` (structured stdout/stderr helpers), `WriteTarget`, `BufferTarget` types
   - `origin.ts` — `getValidatedOrigin`, `isAllowedOrigin`, `matchOriginPattern` (CORS origin validation)
   - `access.ts` — `getRoles`, `hasRole` (role-based access check)
   - `api-response.ts` — `ApiEnvelope<T>`, `ApiSuccessEnvelope<T>`, `ApiErrorEnvelope`, `API_ERROR_CODES`, `successResponse`, `errorResponse`, `paginatedResponse`, `notFoundResponse`, `validationErrorResponse`, `badRequestResponse`, `unauthorizedResponse`, `forbiddenResponse`, `conflictResponse`, `internalErrorResponse`, `infoResponse`
@@ -73,9 +73,10 @@ Extract the eight zero-dependency modules from `~/xprojects/spur/packages/core/s
 
 **Adaptations needed:**
 - `const.ts`: remove `LOG_FILE_PATH` if it references a path that was spur-specific — keep only general-purpose constants
+- `errors.ts`: remove the `@spur/contracts` dependency by defining the minimal library-owned `ErrorCode` contract locally; keep this package zero-dependency
 - `api-response.ts`: keep as-is; it's a stand-alone typed envelope builder with no imports
-- `cursor.ts`: depends on no other module; keep as-is
-- All modules: replace any `@starter/core` imports with `@gobing-ai/ts-utils` (re-exports within the barrel)
+- `cursor.ts`: it imports `toMs` from `date.ts`; keep this as a relative import with a `.js` specifier
+- All internal imports: use extensioned relative specifiers (`./date.js`, etc.); do not import from the package barrel inside the package implementation
 
 **Package structure:**
 ```
@@ -116,7 +117,7 @@ Tests are copied from `~/xprojects/spur/packages/core/tests/` and adapted for th
 7. Copy `origin.ts` + `origin.test.ts` → adapt imports, verify tests pass
 8. Copy `access.ts` + `access.test.ts` → adapt imports, verify tests pass
 9. Copy `api-response.ts` + `api-response.test.ts` → adapt imports, verify tests pass
-10. Run `bun run check` (Biome + tsc + test), verify ≥90% coverage
+10. Run package-level `bun run lint`, `bun run typecheck`, and `bun run test`; from the repo root also run `bun run check` if task 0017 created it
 11. Mark task done
 
 
@@ -134,5 +135,4 @@ Tests are copied from `~/xprojects/spur/packages/core/tests/` and adapted for th
 | ---- | ---- | ----- | ---- |
 
 ### References
-
 

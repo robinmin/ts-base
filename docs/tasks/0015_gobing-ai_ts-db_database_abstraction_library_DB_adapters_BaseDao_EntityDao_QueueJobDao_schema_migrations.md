@@ -23,9 +23,9 @@ impl_progress:
 
 ### Background
 
-The `~/xprojects/spur/` project has a database abstraction layer built on Drizzle ORM with an adapter pattern that supports Bun SQL (and was designed to support PostgreSQL, SQLite, and Cloudflare D1). It provides:
+The `~/xprojects/spur/` project has a database abstraction layer built on Drizzle ORM with an adapter pattern that supports Bun SQLite (and was designed to support Cloudflare D1; PostgreSQL is not present in the current source tree). It provides:
 
-1. **DB adapter interface** — `DbAdapter` with query, execute, transaction, and migration methods. Concrete adapters in `adapters/` (Bun SQL, with stubs for PG and D1).
+1. **DB adapter interface** — `DbAdapter` with query, execute, transaction, and migration methods. Concrete adapters in `adapters/` (Bun SQLite from the source project, plus D1 if it can remain runtime-safe).
 
 2. **BaseDao** — Generic CRUD base class with `findById`, `findAll`, `create`, `update`, `delete`, plus transaction-aware `withTx`. All query methods accept an optional `SpanContext` for telemetry correlation.
 
@@ -35,7 +35,7 @@ The `~/xprojects/spur/` project has a database abstraction layer built on Drizzl
 
 5. **Migration tooling** — `migrate.ts` runs Drizzle migrations; `embedded-migrations.ts` bundles SQL migrations as inline strings for environments without filesystem access (Cloudflare Workers).
 
-6. **Schema definitions** — Drizzle table definitions for the core domain (`runs`, `phase_runs`, `transition_runs`, `queue_jobs`, `workspaces`, `artifacts`, etc.).
+6. **Schema definitions** — reusable Drizzle column helpers plus the `queue_jobs` table required by the shared job-queue library. Spur workflow/history tables are source examples, not default public API.
 
 7. **Span context** — `SpanContext` interface bridges the DB layer with telemetry, carrying `traceId` and `spanId` for distributed tracing.
 
@@ -43,17 +43,17 @@ The `~/xprojects/spur/` project has a database abstraction layer built on Drizzl
 ### Requirements
 
 - [ ] Package published to npm as `@gobing-ai/ts-db` (public, scoped)
-- [ ] External dependencies: `drizzle-orm` (peer), `drizzle-kit` (dev, for migration generation)
-- [ ] Internal dependency: `@gobing-ai/ts-runtime` (for `SpanContext` and `RuntimeContext` integration)
+- [ ] External dependencies: `drizzle-orm` (peer), `drizzle-kit` (dev, for migration generation); use `bun:sqlite` for the Bun adapter, not a separate npm runtime package
+- [ ] Internal dependency: `@gobing-ai/ts-runtime` (for `SpanContext` and optional `RuntimeContext` integration)
 - [ ] ESM only (`"type": "module"`)
 - [ ] Exports from barrel:
-  - **Adapter** — `DbAdapter` interface, `BunSqlAdapter`
+  - **Adapter** — `DbAdapter` interface, `BunSqliteAdapter`, optional `D1Adapter` if it is decoupled from Cloudflare ambient types
   - **BaseDao** — `BaseDao<T>` generic class with CRUD + `withTx`
   - **EntityDao** — `EntityDao<T>` with optimistic locking + `findByExternalId`
   - **QueueJobDao** — `QueueJobDao` with `claimNext`, `completeJob`, `failJob`, `requeueJob`
-  - **Migrations** — `runMigrations`, `createMigrator`, `EmbeddedMigrations`
-  - **Schema** — Drizzle table definitions for core domain entities
-  - **Span context** — `SpanContext` interface (traceId, spanId)
+  - **Migrations** — `applyMigrations`/`runMigrations` naming must match the extracted implementation, `createMigrator`, `EmbeddedMigrations`
+  - **Schema** — reusable Drizzle column helpers and the `queue_jobs` schema required by `ts-infra`; Spur workflow/history domain tables belong in `examples/spur/` unless explicitly kept as examples
+  - **Span context** — re-export `SpanContext` from `@gobing-ai/ts-runtime`; do not depend directly on OpenTelemetry from `ts-db`
 - [ ] Tests ≥ 90% coverage per file
 - [ ] Biome + tsc clean
 
@@ -73,47 +73,43 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 | spur source | ts-libs target | Notes |
 |---|---|---|
 | `db/adapter.ts` | `src/adapter.ts` | `DbAdapter` interface + `AdapterConfig` |
-| `db/adapters/bun-sql.ts` | `src/adapters/bun-sql.ts` | Bun SQL adapter implementation |
-| `db/adapters/pg.ts` | `src/adapters/pg.ts` | PostgreSQL adapter (stub, skeleton) |
+| `db/adapters/bun-sqlite.ts` | `src/adapters/bun-sqlite.ts` | Bun SQLite adapter implementation |
+| `db/adapters/d1.ts` | `src/adapters/d1.ts` | Cloudflare D1 adapter, only if it can compile with local minimal types |
 | `db/base-dao.ts` | `src/base-dao.ts` | Generic CRUD base class |
 | `db/entity-dao.ts` | `src/entity-dao.ts` | Entity DAO with optimistic locking |
 | `db/queue-job-dao.ts` | `src/queue-job-dao.ts` | Job queue persistence |
 | `db/migrate.ts` | `src/migrate.ts` | Drizzle migration runner |
 | `db/embedded-migrations.ts` | `src/embedded-migrations.ts` | Bundled SQL migrations for CF |
-| `db/schema/*.ts` | `src/schema/*.ts` | Drizzle table definitions |
+| `db/schema/common.ts` | `src/schema/common.ts` | Reusable Drizzle column helpers |
+| `db/schema/queue-jobs.ts` | `src/schema/queue-jobs.ts` | Shared job queue table |
 | `db/span-context.ts` | `src/span-context.ts` | Telemetry bridge interface |
-| `db/artifact-dao.ts` | `src/artifact-dao.ts` | Artifact entity DAO |
-| `db/workspace-dao.ts` | `src/workspace-dao.ts` | Workspace entity DAO |
-| `db/run-dao.ts` | `src/run-dao.ts` | Run entity DAO |
-| `db/phase-run-dao.ts` | `src/phase-run-dao.ts` | Phase run DAO |
-| `db/transition-run-dao.ts` | `src/transition-run-dao.ts` | Transition run DAO |
-| `db/run-event-dao.ts` | `src/run-event-dao.ts` | Run event DAO |
-| `db/asset-ref-dao.ts` | `src/asset-ref-dao.ts` | Asset reference DAO |
-| `db/constraint-finding-dao.ts` | `src/constraint-finding-dao.ts` | Constraint finding DAO |
-| `db/gate-result-dao.ts` | `src/gate-result-dao.ts` | Gate result DAO |
+| `db/{artifact,workspace,run,phase-run,transition-run,run-event,asset-ref,constraint-finding,gate-result}-dao.ts` | `examples/spur/*.ts` | Optional examples only; not part of the package barrel |
+| `db/schema/{artifact,workspace,run,phase-run,transition-run,run-event,asset-ref,constraint-finding,gate-result,history-*}.ts` | `examples/spur/schema/*.ts` | Optional examples only; not part of the package barrel |
 
 **Adaptations:**
 - Replace `@starter/core` imports with `@gobing-ai/ts-runtime` (for `SpanContext`, `RuntimeContext`) or `@gobing-ai/ts-utils` (for error types)
 - `adapter.ts`: the `DbAdapter` interface's `RuntimeContext` dependency should use `RuntimeContext` from `@gobing-ai/ts-runtime`
-- `base-dao.ts`: the transaction wrapper uses `DbAdapter.transaction` — ensure it works with Bun SQL adapter's transaction semantics
+- `span-context.ts`: replace the source file's OpenTelemetry `Span` helpers with a plain `SpanContext` re-export from runtime; OpenTelemetry span management belongs in `ts-infra`
+- `base-dao.ts`: the transaction wrapper uses `DbAdapter.transaction` — ensure it works with Bun SQLite adapter's transaction semantics
 - `embedded-migrations.ts`: remove CF-specific `@cloudflare/workers-types`; use a minimal local type declaration matching the pattern in ts-runtime's `file-system-cf.ts`
-- Schema files: domain-specific tables (runs, phases, etc.) are Spur-specific. Extract the core pattern but keep domain tables as examples or move them to `examples/`
+- Schema files: domain-specific tables (runs, phases, history, artifacts, workspaces, etc.) are Spur-specific. Extract reusable schema helpers and `queue_jobs` for the infra job queue; move the rest to `examples/spur/` or leave them in Spur
 - `migrate.ts`: replace any vitest-specific test helpers with Bun-compatible patterns
+- Internal imports must use `.js` specifiers
 
 
 ### Plan
 
 1. Scaffold `packages/db/` with package.json, tsconfig.json, src/index.ts barrel (depends on `@gobing-ai/ts-runtime`, peer on `drizzle-orm`)
-2. Extract `adapter.ts` + `adapters/bun-sql.ts` — the DB adapter interface and Bun SQL implementation
-3. Extract `span-context.ts` — telemetry bridge (lightweight, just the interface)
+2. Extract `adapter.ts` + `adapters/bun-sqlite.ts` — the DB adapter interface and Bun SQLite implementation
+3. Extract `span-context.ts` — re-export the runtime `SpanContext` only; no OpenTelemetry dependency in this package
 4. Extract `base-dao.ts` — generic CRUD base class, depends on adapter
 5. Extract `entity-dao.ts` — extends BaseDao with optimistic locking
-6. Extract domain DAOs — artifact-dao, workspace-dao, run-dao, etc. (review each for Spur-specific coupling)
-7. Extract `queue-job-dao.ts` — job queue persistence (needed by ts-infra's job-queue)
-8. Extract `schema/*.ts` — Drizzle table definitions; separate core from domain-specific
+6. Extract `queue-job-dao.ts` — job queue persistence (needed by ts-infra's job-queue)
+7. Extract reusable schema helpers and `schema/queue-jobs.ts`; move Spur-specific DAOs/tables to examples only if they compile cleanly without becoming package API
+8. Extract optional example domain DAOs — artifact-dao, workspace-dao, run-dao, etc. — under `examples/spur/`, not the public barrel
 9. Extract `migrate.ts` + `embedded-migrations.ts` — migration tooling
 10. Copy and adapt tests for each subsystem; replace vitest with bun:test
-11. Run `bun run check`, verify coverage ≥ 90%
+11. Run package-level `bun run lint`, `bun run typecheck`, and `bun run test`; from the repo root also run `bun run check` if task 0017 created it
 12. Mark task done
 
 
@@ -131,5 +127,3 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 | ---- | ---- | ----- | ---- |
 
 ### References
-
-

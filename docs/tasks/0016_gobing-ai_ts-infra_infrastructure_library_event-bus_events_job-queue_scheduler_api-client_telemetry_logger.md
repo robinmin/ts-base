@@ -23,7 +23,7 @@ impl_progress:
 
 ### Background
 
-The `~/xprojects/spur/` project has an infrastructure layer that provides the application backbone — services wired together at bootstrap via `RuntimeContext`. It consists of six subsystems:
+The `~/xprojects/spur/` project has an infrastructure layer that provides the application backbone — services wired together at bootstrap via `RuntimeContext`. It consists of seven subsystems:
 
 1. **Event bus** (`event-bus/`) — Typed pub/sub system. `EventBus` class supports `emit`, `on`, `once`, `off` with typed event maps. Includes `DefaultObservers` for built-in reactions (console logging, metrics emission) and `FileObserver` for watch-based file processing. Events carry `EventContext` (traceId, spanId, timestamp).
 
@@ -46,16 +46,16 @@ Extracting these into `@gobing-ai/ts-infra` provides the application backbone th
 
 - [ ] Package published to npm as `@gobing-ai/ts-infra` (public, scoped)
 - [ ] Internal dependencies: `@gobing-ai/ts-runtime` (for `RuntimeContext`, `FileSystem`, `ProcessExecutor`), `@gobing-ai/ts-db` (for `DbAdapter`, `QueueJobDao`, `SpanContext`)
-- [ ] External dependencies: `@opentelemetry/api` (peer, for telemetry), `node-cron` (for Node scheduler)
+- [ ] External dependencies: `@opentelemetry/api` (peer, for telemetry), OpenTelemetry SDK/exporter packages used by `telemetry/sdk.ts`, `node-cron` (optional peer or runtime dependency for Node scheduler), `zod` only if the generic API client keeps schema validation
 - [ ] ESM only (`"type": "module"`)
 - [ ] Exports from barrel:
-  - **EventBus** — `EventBus`, `EventContext`, `EventObserver`, `DefaultObservers`, `FileObserver`, `createSystemBus`
-  - **Events** — `AppEvents` type map, `DefaultResponses`
-  - **JobQueue** — `DbQueue`, `DbConsumer`, `JobRecord`, `JobStatus`, `JobHandler`, `QueueConfig`
-  - **Scheduler** — `Scheduler` interface, `NodeScheduler`, `CloudflareScheduler`, `NoopScheduler`, `SchedulerFactory`, `ScheduledAction`
-  - **Telemetry** — `TelemetrySDK`, `Tracing`, `Metrics`, `TelemetryConfig`, `DbSanitize`
-  - **ApiClient** — `ApiClient`, `ApiClientConfig`, typed request/response helpers
-  - **Logger** — `Logger`, `LogLevel`, `LoggerConfig`, `ChildLogger`
+  - **EventBus** — `EventBus`, `EventContext`, `EventObserver`, default observer helpers, file observer helpers, `createSystemBus`
+  - **Events** — generic event map/factory pattern; Spur-specific `AppEvents` and default responses live under `examples/spur/` unless intentionally kept as examples
+  - **JobQueue** — source-compatible names (`DBJobQueue`, `DBQueueConsumer`) or renamed aliases (`DbQueue`, `DbConsumer`) with explicit compatibility exports, `JobRecord`, `JobStatus`, `JobHandler`, `QueueConfig`
+  - **Scheduler** — source-compatible names (`SchedulerAdapter`, `NodeSchedulerAdapter`, `CloudflareSchedulerAdapter`, `NoOpSchedulerAdapter`, `initScheduler`, `SchedulerAction`) or renamed aliases with explicit compatibility exports
+  - **Telemetry** — source-compatible functions (`initTelemetry`, `shutdownTelemetry`, `getTracer`, tracing helpers, metrics helpers, `TelemetryConfig`, `sanitizeSql`)
+  - **ApiClient** — source-compatible `APIClient`, `APIClientConfig`, `APIError`, typed request/response helpers
+  - **Logger** — either keep the source LogTape wrapper (`getLogger`, `initializeLogger`, `Logger` type) and declare `@logtape/logtape`, or replace with a new structured logger and update tests/imports accordingly
 - [ ] Tests ≥ 90% coverage per file
 - [ ] Biome + tsc clean
 
@@ -112,7 +112,9 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 - `scheduler/cloudflare.ts`: remove `@cloudflare/workers-types`; use minimal local type declaration (same pattern as ts-runtime)
 - `telemetry/sdk.ts`: replace spur-specific exporter config with generic `TelemetryConfig`; apps provide their own exporter setup
 - `api-client.ts`: remove spur-specific endpoint definitions; keep the generic client builder
-- `logger.ts`: remove spur-specific child logger contexts; keep generic structured logging
+- `api-client.ts`: currently imports OpenTelemetry semantic conventions; either keep the dependency explicitly or remove tracing instrumentation from the generic client and let callers wrap requests
+- `logger.ts`: source uses `@logtape/logtape`; either keep it as an explicit dependency/peer and document that API, or replace the implementation with an in-package JSON logger. Do not leave an undeclared dependency.
+- Internal imports must use `.js` specifiers
 
 
 ### Plan
@@ -125,7 +127,7 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 6. Extract `telemetry/` subsystem — SDK, tracing, metrics, config, DB sanitizer
 7. Extract `api-client.ts` + `logger.ts` — typed HTTP client and structured logger
 8. Copy and adapt tests for each subsystem; replace vitest with bun:test
-9. Run `bun run check`, verify coverage ≥ 90%
+9. Run package-level `bun run lint`, `bun run typecheck`, and `bun run test`; from the repo root also run `bun run check` if task 0017 created it
 10. Mark task done
 
 
@@ -143,5 +145,3 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 | ---- | ---- | ----- | ---- |
 
 ### References
-
-

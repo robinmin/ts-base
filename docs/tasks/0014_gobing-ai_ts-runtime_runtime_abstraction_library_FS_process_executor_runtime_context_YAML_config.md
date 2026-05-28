@@ -9,6 +9,7 @@ type: task
 feature-id: ""
 priority: high
 estimated_hours: 12
+dependencies: ["0013"]
 tags: ["package","runtime","config"]
 impl_progress:
   planning: pending
@@ -28,7 +29,7 @@ The `~/xprojects/spur/` project has a runtime abstraction layer that allows the 
 
 2. **Process executor** — `ProcessExecutor` for spawning subprocesses with configurable timeouts, env vars, and working directory. Wraps `execa`. Useful for CLI tools and build scripts.
 
-3. **Runtime context** — `RuntimeContext` which is a typed service locator (registry pattern). Stores `Config`, `DbClient`, `Logger`, `FileSystem`, `EventBus` and other services. Created at bootstrap via `createRuntimeContext()` and passed through the app.
+3. **Runtime context** — `RuntimeContext` which is a typed service locator (registry pattern). It owns generic capabilities and service registration only. It must not import concrete DB, event-bus, scheduler, telemetry, or logger implementations from downstream packages.
 
 Plus the **YAML config builder** (`buildConfigFromObject`) which reads a parsed YAML object, interpolates `${ENV_VAR}` placeholders, deep-merges overrides, validates against a Zod schema, and returns a frozen `Config` object.
 
@@ -38,12 +39,12 @@ Extracting these into `@gobing-ai/ts-runtime` gives the monorepo a clean runtime
 ### Requirements
 
 - [ ] Package published to npm as `@gobing-ai/ts-runtime` (public, scoped)
-- [ ] External dependencies: `execa` (process-executor), `yaml` (config parser)
+- [ ] External dependencies: `execa` (process-executor), `yaml` (config parser), `zod` (config validation)
 - [ ] ESM only (`"type": "module"`)
 - [ ] Exports from barrel:
   - **FileSystem** — `FileSystem` interface, `NodeFileSystem`, `CloudflareFileSystem`, `setFileSystem`, `getFs`, `walkDir`, `ensureDirForFile`, `atomicWriteFile`, `atomicWriteJson`, `readJsonFile`, `writeJsonFile`, `resolveProjectPath`, `getProjectRoot`, `createLogStream`
   - **Process executor** — `ProcessExecutor` interface, `NodeProcessExecutor`, `ProcessExecutorConfig`, `ProcessResult`
-  - **Runtime context** — `RuntimeContext`, `RuntimeScope`, `RuntimeServiceMap`, `createRuntimeContext`, `RuntimeContextOptions`, `RuntimeCapabilities`, `RuntimeFactory`, `LoadConfigOptions`
+  - **Runtime context** — `RuntimeContext`, `RuntimeScope`, `RuntimeServiceMap`, `createRuntimeContext`, `RuntimeContextOptions`, `RuntimeCapabilities`, `RuntimeFactory`, `LoadConfigOptions`, `SpanContext`
   - **Config** — `buildConfigFromObject`, `ConfigLoadError`, `configSchema`, `Config` type, `getDatabaseUrl`, `getNodeEnv`, `isTestEnv`, `deepMerge`, `flattenKeys`, `deFlattenKeys`, `interpolateEnv`, `interpolateTree`
 - [ ] Tests ≥ 90% coverage per file
 - [ ] Biome + tsc clean
@@ -69,6 +70,8 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 | `runtime/context.ts` | `src/context.ts` |
 | `runtime/types.ts` | `src/types.ts` |
 | `runtime/select.ts` | `src/select.ts` |
+| `runtime/node-bun.ts` | `src/runtime/node-bun.ts` or `src/node-bun.ts` |
+| `runtime/cloudflare-workers.ts` | `src/runtime/cloudflare-workers.ts` or `src/cloudflare-workers.ts` |
 | `runtime/index.ts` | barrel (part of `src/index.ts`) |
 | `process-executor/process-executor.ts` | `src/process-executor.ts` |
 | `process-executor/types.ts` | merged into `src/process-executor.ts` |
@@ -80,9 +83,12 @@ Extract from `~/xprojects/spur/packages/core/src/`:
 
 **Adaptations:**
 - Replace `@starter/core` imports with `@gobing-ai/ts-utils` (for error types, constants) or internal relative imports
-- `process-executor`: remove vitest-specific mock helpers; replace with Bun-compatible patterns
+- `context.ts`: remove imports of DB, event-bus, scheduler, telemetry, logger, and `QueueJobDao`; downstream packages register those services by interface/key to avoid package cycles (`runtime -> db -> infra -> runtime`)
+- `types.ts`: define a lightweight `SpanContext` (`traceId`, `spanId`, optional baggage/attributes) here so `ts-db` can accept tracing context without importing `ts-infra` or OpenTelemetry
+- `process-executor`: remove event-bus and telemetry coupling from the runtime package; keep optional callbacks/hooks for process lifecycle events if needed, and replace vitest-specific mock helpers with Bun-compatible patterns
 - `config/schema.ts`: the Zod schema defines the top-level config shape — review and simplify for the library context (it was app-specific)
 - `file-system-cf.ts`: remove `@cloudflare/workers-types` reference; use a minimal local type declaration
+- Internal imports must use `.js` specifiers to match the template's TypeScript/Bundler setup
 
 **Package structure:**
 ```
@@ -127,7 +133,7 @@ packages/runtime/
 5. Extract `process-executor.ts` — adapt from execa-based spur version
 6. Extract `config/` subsystem — build-config, schema, env helpers
 7. Copy and adapt tests for each subsystem; replace vitest with bun:test
-8. Run `bun run check`, verify coverage ≥ 90%
+8. Run package-level `bun run lint`, `bun run typecheck`, and `bun run test`; from the repo root also run `bun run check` if task 0017 created it
 9. Mark task done
 
 
@@ -145,5 +151,4 @@ packages/runtime/
 | ---- | ---- | ----- | ---- |
 
 ### References
-
 
