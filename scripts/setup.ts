@@ -162,6 +162,11 @@ function patchLib(pkg: PackageJson): void {
     if (pkg.devDependencies['@types/convict']) {
         delete pkg.devDependencies['@types/convict'];
     }
+    // Published library: declare the TS version range consumers must compile against.
+    pkg.peerDependencies = {
+        ...pkg.peerDependencies,
+        typescript: '>=5.4 <7',
+    };
 }
 
 async function writeJson(path: string, value: unknown): Promise<void> {
@@ -199,8 +204,9 @@ async function promoteTsconfig(mode: 'app' | 'lib'): Promise<void> {
     await rm(`${ROOT}/tsconfig.lib.json`, { force: true });
 }
 
-// Replaces the @SCOPE placeholder in every package.json and source file with the
-// project's real scope so workspace aliases resolve after promotion.
+// Replaces the @SCOPE placeholder in every package.json, source file, and
+// markdown doc with the project's real scope so workspace aliases resolve and
+// docs reference real package names after promotion.
 async function applyScope(scope: string): Promise<void> {
     const patterns = [
         'package.json',
@@ -210,6 +216,10 @@ async function applyScope(scope: string): Promise<void> {
         'apps/*/tests/**/*.{ts,tsx}',
         'packages/*/src/**/*.ts',
         'packages/*/tests/**/*.ts',
+        'README.md',
+        'AGENTS.md',
+        'apps/*/README.md',
+        'packages/*/README.md',
     ];
     const seen = new Set<string>();
     for (const pattern of patterns) {
