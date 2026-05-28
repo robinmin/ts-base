@@ -7,6 +7,6 @@ export type Prettify<T> = {
     [K in keyof T]: T[K];
 } & {};
 
-export type { ZodSchema, ZodType, ZodTypeDef, z as ZodNamespace } from 'zod';
 // Re-export zod so every workspace package gets it through utils.
+export type { ZodSchema, ZodType } from 'zod';
 export { z } from 'zod';
