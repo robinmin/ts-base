@@ -12,6 +12,7 @@
         "@SCOPE/api": "workspace:*",
         "@SCOPE/config": "workspace:*",
         "@SCOPE/db": "workspace:*",
+        "@orpc/server": "^1.14.3",
         "hono": "^4.12.21"
     },
     "devDependencies": {
