@@ -1,24 +1,87 @@
-import { describe, expect, it, mock } from 'bun:test';
-import { main, run } from '../src/cli.js';
+import { describe, expect, it, mock, spyOn } from 'bun:test';
 
-describe('cli', () => {
-    it('run sums numeric args via utils', () => {
-        expect(run(['1', '2', '3'])).toBe('sum = 6');
+// Shared mock planets used by both run() and main() tests.
+const mockPlanets = [
+    { id: 1, name: 'Earth' },
+    { id: 2, name: 'Mars' },
+];
+
+function mockOrpc() {
+    mock.module('../src/orpc.js', () => ({
+        orpc: {
+            list: mock(async () => mockPlanets),
+            create: mock(async ({ name }: { name: string }) => ({ id: 3, name })),
+        },
+    }));
+}
+
+describe('run', () => {
+    it('defaults to list when no args', async () => {
+        mockOrpc();
+        const { run } = await import('../src/cli.js');
+        const result = await run([]);
+        expect(result).toBe('1. Earth\n2. Mars');
     });
 
-    it('run ignores non-numeric args', () => {
-        expect(run(['1', 'x', '4'])).toBe('sum = 5');
+    it('list command returns formatted planet names', async () => {
+        mockOrpc();
+        const { run } = await import('../src/cli.js');
+        const result = await run(['list']);
+        expect(result).toBe('1. Earth\n2. Mars');
     });
 
-    it('main prints run result to stdout', () => {
-        const spy = mock(() => {});
-        const original = console.info;
-        console.info = spy;
+    it('create command with name returns created planet', async () => {
+        mockOrpc();
+        const { run } = await import('../src/cli.js');
+        const result = await run(['create', 'Venus']);
+        expect(result).toBe('Created: 3. Venus');
+    });
+
+    it('create command defaults name to Unknown', async () => {
+        mockOrpc();
+        const { run } = await import('../src/cli.js');
+        const result = await run(['create']);
+        expect(result).toBe('Created: 3. Unknown');
+    });
+
+    it('rejects unknown commands', async () => {
+        mockOrpc();
+        const { run } = await import('../src/cli.js');
+        expect(await run(['bogus'])).toBe('Unknown command: bogus');
+    });
+});
+
+describe('main', () => {
+    it('prints run result to stdout', async () => {
+        mockOrpc();
+        const logSpy = spyOn(console, 'info').mockImplementation(() => {});
         try {
-            main(['10', '20']);
-            expect(spy).toHaveBeenCalledWith('sum = 30');
+            const { main } = await import('../src/cli.js');
+            await main(['list']);
+            expect(logSpy).toHaveBeenCalledWith('1. Earth\n2. Mars');
         } finally {
-            console.info = original;
+            logSpy.mockRestore();
+        }
+    });
+
+    it('logs error and exits on failure', async () => {
+        mock.module('../src/orpc.js', () => ({
+            orpc: {
+                list: mock(async () => {
+                    throw new Error('boom');
+                }),
+            },
+        }));
+        const errSpy = spyOn(console, 'error').mockImplementation(() => {});
+        const exitSpy = spyOn(process, 'exit').mockImplementation((() => {}) as never);
+        try {
+            const { main } = await import('../src/cli.js');
+            await main(['list']);
+            expect(errSpy).toHaveBeenCalled();
+            expect(exitSpy).toHaveBeenCalledWith(1);
+        } finally {
+            errSpy.mockRestore();
+            exitSpy.mockRestore();
         }
     });
 });
