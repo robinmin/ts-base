@@ -11,7 +11,9 @@
         "typecheck": "tsc --noEmit"
     },
     "dependencies": {
-        "@SCOPE/utils": "workspace:*"
+        "@SCOPE/api": "workspace:*",
+        "@SCOPE/utils": "workspace:*",
+        "@orpc/client": "^1.14.3"
     },
     "devDependencies": {
         "@types/bun": "latest"
