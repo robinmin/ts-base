@@ -1,4 +1,4 @@
-import { orpc } from './orpc.js';
+import { orpc } from './orpc';
 
 export async function run(args: string[]): Promise<string> {
     const cmd = args[0] ?? 'list';
