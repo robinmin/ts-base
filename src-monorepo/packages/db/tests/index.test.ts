@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import type { User } from '../src/index.js';
+import type { User } from '../src/index';
 
 interface MockDb {
     (...args: unknown[]): unknown;
@@ -26,7 +26,7 @@ mock.module('../src/connection.js', () => ({
     db: () => mockDb,
 }));
 
-const { createUser, db, findUserByEmail } = await import('../src/index.js');
+const { createUser, db, findUserByEmail } = await import('../src/index');
 
 describe('db', () => {
     it('memoizes the SQL client', () => {
