@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { z } from '../src/index.js';
+import { z } from '../src/index';
 
 describe('utils', () => {
     it('re-exports zod', () => {
