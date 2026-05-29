@@ -1,7 +1,7 @@
 import { ORPCError, onError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { Hono } from 'hono';
-import { router } from './procedures/planet.js';
+import { router } from './procedures/planet';
 
 export const app = new Hono();
 
