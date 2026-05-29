@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import type { Prettify } from '../types.js';
+import type { Prettify } from '../types';
 
 // Prettify is a type-level helper with no runtime output, so it is verified at
 // compile time: a structural equality assertion that fails to typecheck if the
