@@ -1,5 +1,5 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { createProgram } from '../src/cli.js';
+import { createProgram } from '../src/cli';
 
 describe('cli', () => {
     it('createProgram returns a commander instance with an add command', () => {
