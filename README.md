@@ -63,8 +63,8 @@ bun run dev     # dev server with file watching
 bun run start   # production server
 
 # Library mode
-bun run build   # bundle to dist/ via tsdown
-bun run dev     # rebuild on change
+bun run build      # emit dist/ via tsc, then patch runtime ESM specifiers
+bun run smoke:dist # import built entries
 
 # CLI mode (turbo fans each task out across all workspaces)
 bun run dev     # run the CLI in watch mode
@@ -88,7 +88,7 @@ Shared by every mode:
 | `bun run autofix` | Format then type-check               |
 | `bun run prepare` | Install Lefthook Git hooks           |
 
-Application mode adds `start` / `dev` (Bun server). Library mode adds `build` / `dev` (tsdown) and `size` (size-limit). CLI and Monorepo modes route `dev` / `build` / `test` / `typecheck` through `turbo run …` across all workspaces.
+Application mode adds `start` / `dev` (Bun server). Library mode adds `build` (`tsc` + Bun dist extension fixer) and `smoke:dist`. CLI and Monorepo modes route `dev` / `build` / `test` / `typecheck` through `turbo run …` across all workspaces.
 
 ## 🪝 Git Hooks & Conventional Commits
 
@@ -113,7 +113,7 @@ Every mode ships `Prettify<T>`, which flattens intersections and mapped types in
 
 ```ts
 // App mode (internal usage from src/types.ts):
-import type { Prettify } from "./types.js";
+import type { Prettify } from "./types";
 
 // Library mode (consumer of the published package):
 import type { Prettify } from "@your-scope/your-lib";
@@ -144,7 +144,7 @@ For anything beyond a couple of routes, replace the `fetch` handler in
 
 ```ts
 import { Hono } from "hono";
-import { config } from "./config.js";
+import { config } from "./config";
 
 const app = new Hono();
 app.get("/health", (c) => c.json({ status: "ok" }));
@@ -192,10 +192,11 @@ Before `bun run setup` the template ships all four modes side by side:
 │   ├── tooling/typescript/ # shared tsconfig presets
 │   └── turbo.json        #   Turborepo task graph
 ├── scripts/setup.ts      # one-shot mode picker (self-deletes)
+├── scripts/fix-dist-esm-extensions.ts # lib mode dist ESM post-build fixer
 ├── .github/workflows-*/  # per-mode CI (one is installed by setup)
-├── tsdown.config.ts      # library bundler config (lib mode only)
 ├── biome.json            # Biome configuration
 ├── tsconfig.json         # TypeScript configuration (flat modes)
+├── tsconfig.build.json   # library dist emit configuration
 ├── .prototools           # pinned tool versions
 └── package.json
 ```
