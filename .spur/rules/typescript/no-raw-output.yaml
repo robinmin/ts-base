@@ -1,0 +1,25 @@
+# Output boundary rules — keep reusable library/shared-package code free of raw terminal writes.
+include:
+  - "src-lib/**/*.ts"
+  - "src-monorepo/packages/**/src/**/*.ts"
+exclude:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/tests/**"
+
+rules:
+  - id: no-console-output
+    description: "Reusable library/shared-package source should not write directly to the console."
+    severity: error
+    evaluator:
+      type: regex
+      config:
+        pattern: "console\\.(log|error|warn|info|debug|dir|time|trace)"
+
+  - id: no-raw-stdout-stderr
+    description: "Reusable library/shared-package source should not write directly to stdout/stderr."
+    severity: error
+    evaluator:
+      type: regex
+      config:
+        pattern: "process\\.(stdout|stderr)\\.write"

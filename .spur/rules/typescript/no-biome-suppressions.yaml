@@ -1,0 +1,22 @@
+# No Biome suppression comments — project-level override.
+# Exclude test files where noExplicitAny and useLiteralKeys suppressions are legitimate.
+include:
+  - "src*/**/*.ts"
+  - "src*/**/*.tsx"
+  - "src-cli/**/*.ts"
+  - "src-cli/**/*.tsx"
+  - "src-monorepo/**/*.ts"
+  - "src-monorepo/**/*.tsx"
+exclude:
+  - "**/node_modules/**"
+  - "**/tests/**"
+rules:
+  - id: no-biome-suppressions
+    description: >
+      Do not use biome-ignore or biome-ignore-all comments to suppress lint
+      rules.  Fix the underlying issue instead.
+    severity: error
+    evaluator:
+      type: regex
+      config:
+        pattern: "biome-ignore"

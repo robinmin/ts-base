@@ -1,0 +1,24 @@
+# Test location rules — project-level override.
+# This template project uses flat test naming (tests/foo.test.ts for src/nested/foo.ts).
+# require-corresponding-test is intentionally omitted because the 1:1 path mirror
+# convention does not match this project's test organization.
+rules:
+  - id: no-tests-dir
+    description: "Tests must live in tests/ directories at the same level as src/, not in __tests__."
+    severity: error
+    evaluator:
+      type: test-location
+      config:
+        expected: "**/*.test.*"
+        forbid:
+          - "**/__tests__/**"
+          - "**/src/**/*.test.ts"
+          - "**/src/**/*.test.tsx"
+        requireCorrespondingTest: false
+    include:
+      - "src*/tests/**/*.test.ts"
+      - "src*/tests/**/*.test.tsx"
+      - "src-cli/**/tests/**/*.test.ts"
+      - "src-cli/**/tests/**/*.test.tsx"
+      - "src-monorepo/**/tests/**/*.test.ts"
+      - "src-monorepo/**/tests/**/*.test.tsx"
