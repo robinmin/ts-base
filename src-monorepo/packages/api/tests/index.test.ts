@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { PlanetSchema, planetContract } from '../src/index.js';
+import { PlanetSchema, planetContract } from '../src/index';
 
 describe('PlanetSchema', () => {
     it('parses a valid planet', () => {
