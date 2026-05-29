@@ -1,4 +1,4 @@
-import { config } from './config.js';
+import { config } from './config';
 
 const server = Bun.serve({
     port: config.port,
