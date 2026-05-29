@@ -1,8 +1,8 @@
 // Node/Bun entry point. Re-exports the core plus Node-specific helpers.
 
-export type { CoreOptions } from './internal.js';
-export { add, getRandomId, greet } from './internal.js';
-export type { Prettify } from './types.js';
+export type { CoreOptions } from './internal';
+export { add, getRandomId, greet } from './internal';
+export type { Prettify } from './types';
 
 import { randomBytes } from 'node:crypto';
 
