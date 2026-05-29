@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { add } from '../src/index.js';
+import { add } from '../src/index';
 
 describe('add', () => {
     it('sums two numbers', () => {
