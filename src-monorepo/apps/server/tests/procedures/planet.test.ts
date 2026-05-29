@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { _resetPlanets, createPlanet, findPlanet, listPlanet } from '../../src/procedures/planet.js';
+import { _resetPlanets, createPlanet, findPlanet, listPlanet } from '../../src/procedures/planet';
 
 describe('planet procedures', () => {
     beforeEach(() => {
