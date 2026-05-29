@@ -24,11 +24,11 @@ A Bun + TypeScript + Biome **publishable library**. The design optimizes for run
 
 ---
 
-## ADR-002 — tsdown bundling to `dist/`, dual Node + browser exports
+## ADR-002 — `tsc` emit to `dist/`, dual Node + browser exports
 
-**Decision.** The library is bundled with **tsdown** to `dist/`. `package.json` declares conditional `exports` mapping `.` → `dist/index.js` and `./browser` → `dist/browser.js`, with matching `.d.ts` types, `sideEffects: false`, and `files: ["dist"]`.
+**Decision.** The library is emitted with **tsc** to `dist/`, then `scripts/fix-dist-esm-extensions.ts` patches emitted runtime JS specifiers for Node-compatible ESM. `package.json` declares conditional `exports` mapping `.` → `dist/index.js` and `./browser` → `dist/browser.js`, with matching `.d.ts` types, `sideEffects: false`, and `files: ["dist"]`.
 
-**Rationale.** tsdown emits both JS and declaration files with the dual-entry layout the export map needs. `sideEffects: false` enables consumer tree-shaking. Publishing only `dist` keeps the package lean.
+**Rationale.** `tsc` keeps library output transparent and debuggable while emitting both JS and declaration files with the dual-entry layout the export map needs. Source imports remain extensionless for authoring ergonomics; the build step owns the runtime ESM extension rewrite. `sideEffects: false` enables consumer tree-shaking. Publishing only `dist` keeps the package lean.
 
 **Consequences.** The browser bundle is size-budgeted (see ADR-004). zod and other app-level dependencies are deliberately excluded from a library's deps. TypeScript is a `peerDependency` (`>=5.4 <7`), not a hard dep — consumers compile against their own.
 
@@ -48,7 +48,7 @@ A Bun + TypeScript + Biome **publishable library**. The design optimizes for run
 
 **Decision.** Versioning and publishing are automated through release-please, publishing to **both npm and JSR**. `release-please-config.json`, `.release-please-manifest.json`, and `jsr.json` are promoted to the repo root at setup; the workflow lives in `.github/workflows/release-please.yml`.
 
-**Rationale.** Conventional Commits drive semver bumps and changelog generation with no manual version edits. Dual-registry publish reaches both the npm and the Deno/JSR ecosystems from one source. A browser-bundle `size-limit` budget (`3.5 KB`) is enforced so the public surface can't silently bloat.
+**Rationale.** Conventional Commits drive semver bumps and changelog generation with no manual version edits. Dual-registry publish reaches both the npm and the Deno/JSR ecosystems from one source.
 
 **Consequences.** Commit discipline is load-bearing — `feat:`/`fix:` and `BREAKING CHANGE:` footers directly determine published versions. The `size` gate must pass before release; exceeding it is an architectural signal, not a number to bump casually.
 
