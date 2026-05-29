@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { getSecureRandomId } from '../index.js';
+import { getSecureRandomId } from '../index';
 
 describe('getSecureRandomId (node)', () => {
     it('produces a hyphen-separated, base64url-safe id', () => {
