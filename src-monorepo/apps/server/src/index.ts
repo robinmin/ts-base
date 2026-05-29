@@ -1,5 +1,5 @@
 import { config } from '@SCOPE/config';
-import { app } from './app.js';
+import { app } from './app';
 
 const server = Bun.serve({
     port: config.port,
