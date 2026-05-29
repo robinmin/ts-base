@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
-import { app } from '../src/app.js';
-import { _resetPlanets } from '../src/procedures/planet.js';
+import { app } from '../src/app';
+import { _resetPlanets } from '../src/procedures/planet';
 
 const rpcBody = (input: unknown) => JSON.stringify({ json: input, meta: [] });
 
