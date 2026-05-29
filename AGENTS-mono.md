@@ -38,7 +38,7 @@ Never introduce a new runtime, package manager, linter, or formatter.
 - `interface` for object shapes, `type` for unions/intersections.
 - Imports/exports are auto-sorted by Biome — don't hand-order them.
 - `any` is an **error** (`noExplicitAny`). Narrow the type; if unavoidable, justify with `// biome-ignore`.
-- TS imports use extensioned specifiers ending in `.js` — `allowImportingTsExtensions` + `moduleResolution: "bundler"`.
+- TS source imports use extensionless relative specifiers. Library builds patch emitted `dist/*.js` after `tsc`.
 - Workspace imports: always use the `@<scope>/*` alias, never deep relative paths into a sibling package.
 
 ## Commands
