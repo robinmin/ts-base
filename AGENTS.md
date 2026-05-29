@@ -7,7 +7,7 @@ Guidance for AI coding agents working in this repository. `CLAUDE.md` and `GEMIN
 Bun + TypeScript + Biome starter template. Ships **four modes** side by side; `bun run setup` keeps one and removes the rest:
 
 - **Application** (`src-app/`) — a `Bun.serve` HTTP server. Flat single-package layout → `src/`.
-- **Library** (`src-lib/`) — a publishable package (`internal.ts` runtime-agnostic core, `index.ts` Node entry, `browser.ts` browser entry), bundled with tsdown. Flat single-package layout → `src/`.
+- **Library** (`src-lib/`) — a publishable package (`internal.ts` runtime-agnostic core, `index.ts` Node entry, `browser.ts` browser entry), built with `tsc` plus the Bun dist ESM extension fixer. Flat single-package layout → `src/`.
 - **CLI** (`src-cli/`) — a Turborepo + Bun-workspaces layout with a Commander-based CLI in `apps/cli` and shared `packages/{config,utils}`. Promoted to the repo root on setup.
 - **Monorepo** (`src-monorepo/`) — a Turborepo + Bun-workspaces layout promoted to the repo root: `apps/{server,web,cli}` and `packages/{api,config,db,utils}`. Workspaces reference each other by the project scope (`@<scope>/*`), derived from the root `package.json` name; the `@SCOPE/` placeholder in every `package.json` and `.ts`/`.tsx` source file is rewritten in place.
 
@@ -29,7 +29,7 @@ Never introduce a new runtime, package manager, linter, or formatter without exp
 - `interface` for object shapes, `type` for unions/intersections.
 - Imports/exports are auto-sorted by Biome — don't hand-order them.
 - `any` is an **error** (`noExplicitAny`). Use precise types; if `any` is unavoidable, narrow it and justify with a `// biome-ignore` line.
-- TS imports use extensioned specifiers ending in `.js` (e.g. `import { x } from './foo.js'`) — `allowImportingTsExtensions` + `moduleResolution: "bundler"`.
+- TS source imports use extensionless relative specifiers (e.g. `import { x } from './foo'`). Published library builds run `scripts/fix-dist-esm-extensions.ts` to patch emitted `dist/*.js` for Node-compatible ESM.
 
 ## Commands
 
@@ -41,14 +41,14 @@ bun run autofix    # format then type-check
 bun run test       # bun test with coverage
 ```
 
-Mode-specific: app has `start`/`dev`; lib has `build`/`dev` (tsdown) + `size` (size-limit); cli and monorepo proxy `dev`/`build`/`test`/`typecheck` through `turbo run …` across all workspaces (root pins `packageManager` so Turbo can resolve them).
+Mode-specific: app has `start`/`dev`; lib has `build` (`tsc` + Bun dist extension fixer) and `smoke:dist`; cli and monorepo proxy `dev`/`build`/`test`/`typecheck` through `turbo run …` across all workspaces (root pins `packageManager` so Turbo can resolve them).
 
 ## Verification gate (all must pass before "done")
 
 1. `bun run lint` clean — Biome **and** `tsc --noEmit`.
 2. `bun run test` passes; no test skipped, `.skip`'d, or commented out to go green.
 3. `git status` shows only intentional changes.
-4. Lib mode only: `bun run build` succeeds and `bun run size` stays under the limit.
+4. Lib mode only: `bun run build` and `bun run smoke:dist` succeed.
 5. CLI / Monorepo mode only: `bun run build` (turbo) succeeds across all workspaces.
 
 If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--force`, or new `biome-ignore` suppressions added solely to silence the gate.
