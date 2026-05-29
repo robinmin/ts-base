@@ -1,8 +1,8 @@
 // Browser entry point. Re-exports the core; uses Web Crypto instead of node:crypto.
 
-export type { CoreOptions } from './internal.js';
-export { add, getRandomId, greet } from './internal.js';
-export type { Prettify } from './types.js';
+export type { CoreOptions } from './internal';
+export { add, getRandomId, greet } from './internal';
+export type { Prettify } from './types';
 
 export function getSecureRandomId(): string {
     const timePart = Date.now().toString(36);
