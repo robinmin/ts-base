@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { loadConfig } from '../src/index.js';
+import { loadConfig } from '../src/index';
 
 describe('loadConfig', () => {
     it('defaults to port 3000 when PORT is unset', () => {
