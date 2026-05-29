@@ -20,7 +20,7 @@ export const APP_SCRIPTS = {
 
 export const LIB_SCRIPTS = {
     ...SHARED_SCRIPTS,
-    build: 'tsdown',
-    dev: 'tsdown --watch',
-    size: 'size-limit',
+    build: 'tsc -p tsconfig.build.json && bun scripts/fix-dist-esm-extensions.ts dist',
+    'smoke:dist': 'bun scripts/smoke-dist-imports.ts',
+    check: 'bun run lint && bun run build && bun run smoke:dist && bun run test',
 };
