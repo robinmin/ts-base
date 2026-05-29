@@ -16,7 +16,7 @@
  */
 import { rm } from 'node:fs/promises';
 import { $, Glob } from 'bun';
-import { APP_SCRIPTS, LIB_SCRIPTS } from './_modes.js';
+import { APP_SCRIPTS, LIB_SCRIPTS } from './_modes';
 
 type Mode = 'app' | 'lib' | 'cli' | 'mono';
 
@@ -76,6 +76,8 @@ function deriveScope(name: unknown): string {
 // biome-ignore lint/suspicious/noExplicitAny: package.json is free-form JSON.
 type PackageJson = Record<string, any>;
 
+const JS_EXT = '.js';
+
 async function readPackageJson(): Promise<PackageJson> {
     return (await Bun.file(`${ROOT}/package.json`).json()) as PackageJson;
 }
@@ -131,19 +133,19 @@ function patchLib(pkg: PackageJson): void {
     pkg.type = 'module';
     pkg.exports = {
         '.': {
-            import: './dist/index.js',
+            import: `./dist/index${JS_EXT}`,
             types: './dist/index.d.ts',
         },
         './browser': {
-            import: './dist/browser.js',
+            import: `./dist/browser${JS_EXT}`,
             types: './dist/browser.d.ts',
         },
     };
     pkg.types = './dist/index.d.ts';
-    pkg.browser = './dist/browser.js';
+    pkg.browser = `./dist/browser${JS_EXT}`;
     pkg.sideEffects = false;
     pkg.files = ['dist'];
-    pkg['size-limit'] = [{ path: 'dist/browser.js', limit: '3.5 KB' }];
+    delete pkg['size-limit'];
 
     // zod is an application concern; libraries should not bundle it.
     if (pkg.dependencies?.zod) {
@@ -152,12 +154,6 @@ function patchLib(pkg: PackageJson): void {
             delete pkg.dependencies;
         }
     }
-    pkg.devDependencies = {
-        ...pkg.devDependencies,
-        '@size-limit/preset-small-lib': '^11',
-        'size-limit': '^11',
-        tsdown: '^0.15.0',
-    };
     // Published library: declare the TS version range consumers must compile against.
     pkg.peerDependencies = {
         ...pkg.peerDependencies,
@@ -223,10 +219,31 @@ async function applyScope(scope: string): Promise<void> {
             const path = `${ROOT}/${rel}`;
             const text = await Bun.file(path).text();
             if (text.includes('@SCOPE/')) {
-                await Bun.write(path, text.replaceAll('@SCOPE/', `@${scope}/`));
+                await Bun.write(path, normalizePromotedScopeImports(text.replaceAll('@SCOPE/', `@${scope}/`), scope));
             }
         }
     }
+}
+
+function normalizePromotedScopeImports(text: string, scope: string): string {
+    const apiType = `import type { planetContract } from '@${scope}/api';`;
+    const apiPlanetType = `import type { Planet } from '@${scope}/api';`;
+    const apiPlanet = `import { planetContract } from '@${scope}/api';`;
+    const utilsZod = `import { z } from '@${scope}/utils';`;
+
+    return text
+        .replace(
+            `${apiType}\nimport { createORPCClient } from '@orpc/client';\nimport { RPCLink } from '@orpc/client/fetch';\nimport type { ContractRouterClient } from '@orpc/contract';`,
+            `import { createORPCClient } from '@orpc/client';\nimport { RPCLink } from '@orpc/client/fetch';\nimport type { ContractRouterClient } from '@orpc/contract';\n${apiType}`,
+        )
+        .replace(
+            `${apiPlanetType}\n${apiPlanet}\nimport { implement, ORPCError } from '@orpc/server';`,
+            `import { implement, ORPCError } from '@orpc/server';\n${apiPlanetType}\n${apiPlanet}`,
+        )
+        .replace(
+            `${utilsZod}\nimport { oc } from '@orpc/contract';`,
+            `import { oc } from '@orpc/contract';\n${utilsZod}`,
+        );
 }
 
 async function setupWorkspace(mode: 'cli' | 'mono', scope: string): Promise<void> {
@@ -282,7 +299,7 @@ async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void
         }
         if (flags.noConfig) {
             await rm(`${ROOT}/src/config.ts`, { force: true });
-            // src/index.ts imports ./config.js. Replace it with an env-only
+            // src/index.ts imports ./config. Replace it with an env-only
             // fallback so the resulting app boots without that module.
             await Bun.write(`${ROOT}/src/index.ts`, MINIMAL_APP_ENTRY);
         }
@@ -298,8 +315,12 @@ async function setupFlat(mode: 'app' | 'lib', flags: CleanupFlags): Promise<void
 
     if (mode === 'lib') {
         await writeLibExtras();
+        await rm(`${ROOT}/tsdown.config.ts`, { force: true });
     } else {
         await rm(`${ROOT}/tsdown.config.ts`, { force: true });
+        await rm(`${ROOT}/tsconfig.build.json`, { force: true });
+        await rm(`${ROOT}/scripts/fix-dist-esm-extensions.ts`, { force: true });
+        await rm(`${ROOT}/scripts/smoke-dist-imports.ts`, { force: true });
     }
 
     await promoteTsconfig(mode);
@@ -355,15 +376,19 @@ async function main(): Promise<void> {
         await $`ln -sf ../.claude/skills ${ROOT}/.agents/skills`.quiet();
     }
 
-    // Drop the template lockfile. It carried deps for every mode (convict,
-    // tsdown, size-limit, …) which patchApp/patchLib have just edited away.
+    // Drop the template lockfile. It carried deps for every mode, which
+    // patchApp/patchLib have just edited away.
     // The user runs `bun install` next and gets a fresh, mode-specific lock.
     await rm(`${ROOT}/bun.lock`, { force: true });
 
     // Remove the template-only scripts first, then strip their package.json
     // entries. If the process dies between, leftover `bun run …` calls produce
     // a clear "module not found" instead of silently re-running stale code.
-    for (const f of ['setup.ts', '_modes.ts', 'clean.ts', 'test-setup.ts', 'ensure-scaffold-installs.ts']) {
+    const removableScripts = ['setup.ts', '_modes.ts', 'clean.ts', 'test-setup.ts', 'ensure-scaffold-installs.ts'];
+    if (mode !== 'lib') {
+        removableScripts.push('fix-dist-esm-extensions.ts', 'smoke-dist-imports.ts');
+    }
+    for (const f of removableScripts) {
         await rm(`${ROOT}/scripts/${f}`, { force: true });
     }
     await $`rmdir ${ROOT}/scripts`.quiet().nothrow();
