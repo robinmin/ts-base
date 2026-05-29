@@ -9,4 +9,4 @@ export {
     type Planet,
     PlanetSchema,
     planetContract,
-} from './contracts/planet.js';
+} from './contracts/planet';
