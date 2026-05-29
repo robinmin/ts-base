@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { add, getRandomId, greet } from '../internal.js';
+import { add, getRandomId, greet } from '../internal';
 
 describe('add', () => {
     it('sums two numbers', () => {
