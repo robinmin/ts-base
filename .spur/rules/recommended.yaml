@@ -5,7 +5,10 @@
 # Create category folders under .spur/rules/ (e.g. my-rules/).
 name: recommended
 extends:
-  - typescript
+  - typescript/bun-only
+  - typescript/esm-build-conventions
+  - typescript/no-biome-suppressions
+  - typescript/no-raw-output
   - structure
   - quality
   - meta
