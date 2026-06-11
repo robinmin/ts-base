@@ -1,247 +1,152 @@
-# 🚀 ts-base
+# ts-base
 
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.x%20%7C%206.x-blue.svg)](https://www.typescriptlang.org/)
-[![Bun](https://img.shields.io/badge/Bun-1.3-orange.svg)](https://bun.sh/)
-[![Biome](https://img.shields.io/badge/Biome-2.4-green.svg)](https://biomejs.dev/)
+`ts-base` is a Bun + TypeScript + Biome project-template and agent-tooling workbench. It exists to help developers create new projects quickly while preserving proven engineering practices from real projects.
 
-A modern, production-ready TypeScript starter wired up with Bun, Biome, Git hooks, and conventional commits. Pick **application**, **library**, **CLI**, or **monorepo** mode at setup — clone it and start building.
+The repository has two flows:
 
-## ✨ Stack
+- **Divergence:** create a new app, library, CLI, or monorepo from curated scaffolds.
+- **Convergence:** review and absorb reusable agent skills, slash commands, workflow conventions, and quality practices from selected source projects without importing project-specific drift.
 
-- **[Bun](https://bun.sh/)** — runtime, package manager, and test runner
-- **[TypeScript](https://www.typescriptlang.org/)** — ESNext, strict mode
-- **[Biome](https://biomejs.dev/)** — linter + formatter (replaces ESLint & Prettier)
-- **[Lefthook](https://github.com/evilmartians/lefthook)** — Git hooks
-- **[Cocogitto](https://github.com/cocogitto/cocogitto)** — conventional commits + changelog
-- **[proto](https://moonrepo.dev/proto)** — pins every tool version via `.prototools`
+## Stack
 
-## 🚀 Quick Start
+- **Bun 1.3.14** — runtime, package manager, and test runner
+- **TypeScript** — ESNext, strict mode
+- **Biome 2.4.16** — linter and formatter
+- **Lefthook** — Git hooks
+- **Cocogitto** — conventional commits
+- **proto** — pinned tool versions via `.prototools`
+- **Spur** — project quality harness and architecture-rule gate
 
-### Install tools and dependencies
-
-With [proto](https://moonrepo.dev/proto) (recommended — installs the exact tool versions from `.prototools`):
-
-```bash
-# Install proto if you don't have it
-bash -c "$(curl -fsSL https://moonrepo.dev/install/proto.sh)"
-```
-
-### Initialize project
+## Quick Start
 
 ```bash
 # Scaffold from the template
 PROJECT_NAME=my-project
-bunx degit robinmin/ts-base $PROJECT_NAME && cd $PROJECT_NAME
+bunx degit robinmin/ts-base $PROJECT_NAME
+cd $PROJECT_NAME
 
-# Pick a mode: application (Bun.serve server), library (publishable package),
-# cli (Commander-based CLI), or monorepo (Turborepo + Bun workspaces). Flat
-# modes rename the chosen src-*/ folder to src/; cli and monorepo modes promote
-# src-cli/ or src-monorepo/ to the root. The unused scaffolds are removed, the
-# matching scripts/deps/CI are wired up, then setup deletes itself.
-#
-# For cli and monorepo modes, the @SCOPE/ placeholder in every workspace is
-# replaced with your project's scope, derived from the "name" field in
-# package.json. If you want a custom scope (e.g. @myorg/api), edit
-# package.json → "name" before running setup. Otherwise the scope defaults to
-# the degit directory name.
-bun run setup            # interactive prompt
-# bun run setup --mode=app   # or --mode=lib | --mode=cli | --mode=mono, non-interactive
+# Optional: edit package.json "name" first for cli/mono workspace scope.
+bun run setup
+# bun run setup --mode=app
+# bun run setup --mode=lib
+# bun run setup --mode=cli
+# bun run setup --mode=mono
 
-# Install bun, biome, cog, lefthook + project deps + Git hooks
-proto use && bun install
-
-# Initialize a fresh git repo (the template ships unconnected)
-git init && git add . && git commit -m "chore: initial commit"
+proto use
+bun install
+bun run check
 ```
 
-### Run
+After setup, the selected mode is promoted and unused scaffolds are deleted. The result should read like a normal single-mode project, not a multi-mode template checkout.
+
+## Project Modes
+
+Before setup the template ships four modes side by side:
+
+| Mode | Source | Result |
+| ---- | ------ | ------ |
+| `app` | `src-app/` | Flat Bun HTTP server in `src/` |
+| `lib` | `src-lib/` | Publishable TypeScript library in `src/` |
+| `cli` | `src-cli/` | Bun workspace with `apps/cli` and shared packages |
+| `mono` | `src-monorepo/` | Turborepo + Bun workspaces with server, web, CLI, and shared packages |
+
+Mode-specific contracts live in `AGENTS-<mode>.md` and `docs/00_ADR-<mode>.md` before setup. `scripts/setup.ts` swaps the selected files into `AGENTS.md` and `docs/00_ADR.md`.
+
+## Convergence Workflow
+
+Convergence is for importing reusable project experience back into this template. The intended flow is review-first:
 
 ```bash
-# Application mode
-bun run dev     # dev server with file watching
-bun run start   # production server
-
-# Library mode
-bun run build      # emit dist/ via tsc, then patch runtime ESM specifiers
-bun run smoke:dist # import built entries
-
-# CLI mode (turbo fans each task out across all workspaces)
-bun run dev     # run the CLI in watch mode
-bun run test    # test all workspaces
-
-# Monorepo mode (turbo fans each task out across all workspaces)
-bun run dev     # run every app's dev task in parallel
-bun run build   # build all workspaces
-bun run test    # test all workspaces
+bun run scripts/ts-base.ts converge scan --from ../source-project --mode app --type all
+bun run scripts/ts-base.ts converge review --review docs/reviews/<review-id>.json
+bun run scripts/ts-base.ts converge apply --review docs/reviews/<review-id>.json --approve candidate-id
 ```
 
-## 🛠️ Scripts
+`scan` discovers candidate agent capabilities, classifies them, and writes a review artifact. `apply` only writes explicitly approved candidates.
 
-Shared by every mode:
+Candidate classes:
 
-| Script            | Description                          |
-|-------------------|--------------------------------------|
-| `bun run test`    | Run tests with coverage              |
-| `bun run lint`    | Biome check + `tsc --noEmit`         |
-| `bun run format`  | Auto-fix and format with Biome       |
-| `bun run autofix` | Format then type-check               |
-| `bun run prepare` | Install Lefthook Git hooks           |
+| Class | Meaning |
+| ----- | ------- |
+| `generic` | Reusable capability that can be imported into this template |
+| `mode-specific` | Reusable only for selected modes |
+| `ts-libs-candidate` | Reusable implementation code that belongs in `~/xprojects/ts-libs` instead of this repo |
+| `project-specific` | Source-project material blocked by default |
+| `sensitive` | Secrets, credentials, endpoints, or unsafe material; never imported |
+| `unknown` | Needs human review before any action |
 
-Application mode adds `start` / `dev` (Bun server). Library mode adds `build` (`tsc` + Bun dist extension fixer) and `smoke:dist`. CLI and Monorepo modes route `dev` / `build` / `test` / `typecheck` through `turbo run …` across all workspaces.
+## Agent Capability Model
 
-## 🪝 Git Hooks & Conventional Commits
+- `.claude/skills/<name>/SKILL.md` is the canonical skill format.
+- `.claude/commands/<name>.md` is the canonical slash-command format.
+- `.agents/skills` is a symlink/adaptor target for other agents.
+- Cross-agent copies are avoided unless a generated adapter owns the conversion.
+- Every new skill, command, config, symlink, adapter, or rewrite requires explicit confirmation.
 
-Lefthook runs quality checks automatically:
+## Spur
 
-- **pre-commit** — Biome format (autofix)
-- **commit-msg** — validate the message
-- **pre-push** — cog check + `bun run lint` (Biome + typecheck)
-
-Commit messages must follow [Conventional Commits](https://www.conventionalcommits.org/):
+Spur is the quality harness used across Robin's projects. This repository keeps the standard checks and uses Spur for architectural and workflow invariants where those checks are reusable.
 
 ```bash
-git commit -m "feat: add user authentication"
-git commit -m "fix: resolve memory leak in data processing"
+bun run check       # lint + tests
+bun run spur-check  # lint + Spur pre-check + tests + Spur post-check
 ```
 
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Breaking changes go in a `BREAKING CHANGE:` footer.
+Spur internals must not leak into generated end-user projects unless setup exposes an explicit option for that behavior.
 
-## 🧰 Type Utilities
+## `ts-base` vs `ts-libs`
 
-Every mode ships `Prettify<T>`, which flattens intersections and mapped types into a single object literal so editor tooltips read `{ a: string; b: number }` instead of `A & B`. Compile-time only — emits no runtime code.
+Use this rule when convergence finds reusable code:
 
-```ts
-// App mode (internal usage from src/types.ts):
-import type { Prettify } from "./types";
+- Keep project-generation workflows, scaffolds, setup orchestration, agent skills, slash commands, and project-level conventions in `ts-base`.
+- Move reusable runtime libraries, pure utilities, framework-agnostic components, shared validation helpers, reusable CLI primitives, and cross-project TypeScript modules to `~/xprojects/ts-libs`.
+- Do not write to `ts-libs` from a convergence scan. Produce a `ts-libs-candidate` proposal and handle extraction in a separate confirmed task.
 
-// Library mode (consumer of the published package):
-import type { Prettify } from "@your-scope/your-lib";
+The current `ts-libs` monorepo contains packages such as `@gobing-ai/ts-utils`, `@gobing-ai/ts-runtime`, `@gobing-ai/ts-db`, `@gobing-ai/ts-infra`, `@gobing-ai/ts-ai-runner`, `@gobing-ai/ts-rule-engine`, `@gobing-ai/ts-dual-workflow-engine`, and `@gobing-ai/ts-llm-jsonl-importer`.
 
-// Monorepo / CLI mode (via the shared utils package):
-import type { Prettify } from "@your-scope/utils";
+## Commands
 
-type Result = { a: string } & { b: number };
-type PrettyResult = Prettify<Result>; // hovers as { a: string; b: number }
+| Command | Description |
+| ------- | ----------- |
+| `bun run setup` | Choose and promote app/lib/cli/mono mode |
+| `bun run clean` | Remove generated caches from template scaffolds |
+| `bun run lint` | Biome check + TypeScript typecheck |
+| `bun run typecheck` | TypeScript typecheck only |
+| `bun run test` | Bun tests with coverage |
+| `bun run check` | Lint + tests |
+| `bun run spur-check` | Full quality gate with Spur checks |
+| `bun run format` | Biome autofix |
+| `bun run autofix` | Format then typecheck |
+
+## Documentation Map
+
+- `AGENTS.md` — coding-agent operating contract.
+- `docs/00_ADR.md` — architecture decision record for this template/tooling direction.
+- `docs/01_PRD.md` — product brief and scope.
+- `docs/03_ARCHITECTURE.md` — architecture overview and design decisions.
+- `docs/00_ADR-app.md`, `docs/00_ADR-lib.md`, `docs/00_ADR-cli.md`, `docs/00_ADR-mono.md` — mode-specific ADRs swapped during setup.
+
+## Verification Gate
+
+Before a task is done:
+
+```bash
+bun run lint
+bun run test
 ```
 
-## 🍳 Recipes (application mode)
+For project-direction, convergence, or architecture-rule changes, also run:
 
-The default app is an intentionally minimal `Bun.serve` server. The recipes below assume application mode — library, CLI, and monorepo modes have their own conventions. Common upgrades:
-
-### Database — Bun native SQL
-
-`src-app/db.example.ts` is a zero-dependency reference using Bun's built-in SQL
-client (`import { SQL } from "bun"`). Tagged-template queries are parameterized,
-so they are injection-safe by default. Rename it to `db.ts`, adapt the schema,
-and set `$DATABASE_URL`. Delete the file if you don't need a database. See the
-[Bun SQL docs](https://bun.sh/docs/api/sql).
-
-### Routing — swap in Hono
-
-For anything beyond a couple of routes, replace the `fetch` handler in
-`src/index.ts` with [Hono](https://hono.dev/) (routing, middleware, validation):
-
-```ts
-import { Hono } from "hono";
-import { config } from "./config";
-
-const app = new Hono();
-app.get("/health", (c) => c.json({ status: "ok" }));
-
-export default { port: config.port, fetch: app.fetch };
+```bash
+bun run spur-check
 ```
 
-Then `bun add hono`. Hono runs natively on `Bun.serve` and stays edge-portable.
+## Security
 
-## 📁 Project Structure
+Never import secrets, `.env*`, credentials, private endpoints, tokens, or source-project-specific deployment configuration during convergence. Sensitive candidates are blocked even if listed in an approval artifact.
 
-Before `bun run setup` the template ships all four modes side by side:
+See [SECURITY.md](SECURITY.md) for the security policy.
 
-```
-├── src-app/              # application mode (kept if you pick "app")
-│   ├── index.ts          #   Bun.serve entry point
-│   ├── config.ts         #   convict-based configuration
-│   ├── db.example.ts     #   optional Bun native SQL reference (rename or delete)
-│   ├── types.ts          #   shared type utilities (Prettify)
-│   └── tests/
-├── src-lib/              # library mode (kept if you pick "lib")
-│   ├── internal.ts       #   runtime-agnostic core
-│   ├── index.ts          #   Node/Bun entry (node:crypto)
-│   ├── browser.ts        #   browser entry (Web Crypto)
-│   ├── types.ts          #   shared type utilities (Prettify)
-│   └── tests/
-├── src-cli/              # cli mode (promoted to root if you pick "cli")
-│   ├── apps/
-│   │   └── cli/          #   Commander-based CLI
-│   ├── packages/
-│   │   ├── config/       #   convict configuration
-│   │   └── utils/        #   shared utilities + type helpers
-│   ├── tooling/typescript/ # shared tsconfig presets
-│   └── turbo.json        #   Turborepo task graph
-├── src-monorepo/         # monorepo mode (promoted to root if you pick "mono")
-│   ├── apps/
-│   │   ├── server/       #   Hono on Bun.serve
-│   │   ├── web/          #   Vite + React 19
-│   │   └── cli/          #   Bun CLI
-│   ├── packages/
-│   │   ├── api/          #   shared logic + types (consumed by server & web)
-│   │   ├── config/       #   convict configuration
-│   │   ├── db/           #   Bun native SQL
-│   │   └── utils/        #   shared utilities + type helpers
-│   ├── tooling/typescript/ # shared tsconfig presets
-│   └── turbo.json        #   Turborepo task graph
-├── scripts/setup.ts      # one-shot mode picker (self-deletes)
-├── scripts/fix-dist-esm-extensions.ts # lib mode dist ESM post-build fixer
-├── .github/workflows-*/  # per-mode CI (one is installed by setup)
-├── biome.json            # Biome configuration
-├── tsconfig.json         # TypeScript configuration (flat modes)
-├── tsconfig.build.json   # library dist emit configuration
-├── .prototools           # pinned tool versions
-└── package.json
-```
-
-After setup, the flat modes rename the chosen folder to `src/` and remove the
-others; cli and monorepo modes promote `src-cli/` or `src-monorepo/`'s contents
-to the root and rewrite the `@SCOPE/` placeholder to your project's scope. The
-mode-specific scripts, deps, and CI are wired into `package.json` and
-`.github/workflows/`.
-
-## 📋 Customization
-
-1. Edit `"name"` in `package.json` to set your project's scope. The cli and
-   monorepo setups replace every `@SCOPE/` placeholder with `@<your-name>/`
-   during promotion, so the name you pick here becomes the workspace scope
-   (e.g. `@myorg/api`).
-2. Run `bun run setup` to choose application, library, cli, or monorepo mode.
-3. Replace `src/` (or the `apps/` + `packages/` workspaces) with your own code.
-4. Adjust `tsconfig.json` / `biome.json` as needed.
-5. Rewrite this README for your project.
-
-## 🧹 Post-Initialization Cleanup
-
-`bun run setup` handles all structural cleanup: removes unused modes, deletes
-itself, installs the matching CI, and optionally strips the database example or
-convict config via flags.
-
-Use `bun run setup --mode=app --no-db` to skip the Bun SQL sample, or
-`--no-convict` to drop config validation. For more complex trimming (monorepo
-workspaces, etc.), do it by hand after setup.
-
-What's left is **your** project now — replace the sample code, rewrite this
-README, and adjust the remaining config to fit.
-
-## 🔒 Security
-
-See [SECURITY.md](SECURITY.md) for the security policy and how to report vulnerabilities.
-
-## 📄 License
+## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
-
-## References
-
-- Forked from [tabmadi/ts-template](https://github.com/tabmadi/ts-template)
-- [bgub/ts-base](https://github.com/bgub/ts-base)
-- [SamJbori/create-x3bun-app](https://github.com/SamJbori/create-x3bun-app)
-- [TypeScript Development First Steps with Bun and Modern Tooling — 2025](https://dappgenie.io/blogs/typescript-development-first-steps-with-bun-and-modern-tooling)
