@@ -8,10 +8,10 @@ include:
   - "src-cli/**/*.tsx"
   - "src-monorepo/**/*.ts"
   - "src-monorepo/**/*.tsx"
-  - ".spur/**/*.yaml"
 exclude:
   - "**/node_modules/**"
   - "**/dist/**"
+  - "vendors/**"
 
 rules:
   - id: no-npm-pnpm-yarn-scripts
@@ -23,10 +23,6 @@ rules:
         pattern: "\\b(npm run|pnpm|yarn)\\b"
     include:
       - "package.json"
-      - ".spur/**/*.yaml"
-      - "**/*.yml"
-      - "**/*.yaml"
-      - "**/*.lock"
 
   - id: enforce-bun-test
     description: "Test files must use bun:test, not Vitest, Jest, or Mocha."
