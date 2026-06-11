@@ -17,6 +17,7 @@
 import { rm } from 'node:fs/promises';
 import { $, Glob } from 'bun';
 import { APP_SCRIPTS, LIB_SCRIPTS } from './_modes';
+import { pruneModeScopedCapabilities, wireAgentSkillsSymlink } from './agent-convergence/capabilities';
 
 type Mode = 'app' | 'lib' | 'cli' | 'mono';
 
@@ -367,14 +368,13 @@ async function main(): Promise<void> {
         await $`mv ${adrSrc} ${ROOT}/docs/00_ADR.md`.quiet();
     }
 
-    // Wire the .agents/skills symlink so multi-agent tooling (claude, codex, pi, …)
-    // shares a single skill tree without copying. Only create it when the
-    // target actually exists, otherwise the result is a dangling symlink that
-    // confuses tools and `git status`.
-    if (await Bun.file(`${ROOT}/.claude/skills`).exists()) {
-        await $`mkdir -p ${ROOT}/.agents`.quiet();
-        await $`ln -sf ../.claude/skills ${ROOT}/.agents/skills`.quiet();
-    }
+    // Drop capabilities whose supported-modes annotation excludes the chosen
+    // mode, then wire the .agents/skills symlink so multi-agent tooling
+    // (claude, codex, pi, …) shares a single skill tree without copying. The
+    // helper only links when the target exists, so no dangling symlink can
+    // confuse tools or `git status`.
+    await pruneModeScopedCapabilities(ROOT, mode);
+    await wireAgentSkillsSymlink(ROOT);
 
     // Drop the template lockfile. It carried deps for every mode, which
     // patchApp/patchLib have just edited away.
