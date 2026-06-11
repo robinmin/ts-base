@@ -3,6 +3,22 @@
 # require-corresponding-test is intentionally omitted because the 1:1 path mirror
 # convention does not match this project's test organization.
 rules:
+  - id: no-focused-or-skipped-tests
+    description: "Tests must not be focused, skipped, or commented out to pass."
+    severity: error
+    evaluator:
+      type: regex
+      config:
+        pattern: "\\b(describe|it|test)\\.(only|skip)\\b"
+    include:
+      - "scripts/tests/**/*.test.ts"
+      - "src*/tests/**/*.test.ts"
+      - "src*/tests/**/*.test.tsx"
+      - "src-cli/**/tests/**/*.test.ts"
+      - "src-cli/**/tests/**/*.test.tsx"
+      - "src-monorepo/**/tests/**/*.test.ts"
+      - "src-monorepo/**/tests/**/*.test.tsx"
+
   - id: no-tests-dir
     description: "Tests must live in tests/ directories at the same level as src/, not in __tests__."
     severity: error
