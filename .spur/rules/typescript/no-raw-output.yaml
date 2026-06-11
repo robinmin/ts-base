@@ -12,14 +12,34 @@ rules:
     description: "Reusable library/shared-package source should not write directly to the console."
     severity: error
     evaluator:
-      type: regex
+      type: exit-code
       config:
-        pattern: "console\\.(log|error|warn|info|debug|dir|time|trace)"
+        command: sh
+        args:
+          - -c
+          - |
+            if rg -n "console\.(log|error|warn|info|debug|dir|time|trace)" src-lib src-monorepo/packages --glob 'src/**/*.ts'; then
+              exit 1
+            fi
+            exit 0
+    include:
+      - "src-lib/**/*.ts"
+      - "src-monorepo/packages/**/src/**/*.ts"
 
   - id: no-raw-stdout-stderr
     description: "Reusable library/shared-package source should not write directly to stdout/stderr."
     severity: error
     evaluator:
-      type: regex
+      type: exit-code
       config:
-        pattern: "process\\.(stdout|stderr)\\.write"
+        command: sh
+        args:
+          - -c
+          - |
+            if rg -n "process\.(stdout|stderr)\.write" src-lib src-monorepo/packages --glob 'src/**/*.ts'; then
+              exit 1
+            fi
+            exit 0
+    include:
+      - "src-lib/**/*.ts"
+      - "src-monorepo/packages/**/src/**/*.ts"
