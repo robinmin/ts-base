@@ -17,7 +17,7 @@ rules:
   - id: every-export-has-tsdoc
     description: >
       Exported declarations should have a preceding TSDoc comment (info — aspirational).
-    severity: info
+    severity: error
     enabled: true
     evaluator:
       type: tsdoc-export
