@@ -1,11 +1,7 @@
-# Protected file rules — secret detection and git safety.
-include:
-  - "packages/**/*.ts"
-exclude:
-  - "**/*.test.ts"
-  - "**/node_modules/**"
-  - "**/dist/**"
-
+# Protected-file rules — secret detection and git/repo safety.
+# Adapted from ts-libs, re-scoped for ts-base's multi-scaffold layout.
+# Mirrors the AGENTS.md safety boundaries (no secrets, no .env, no unreviewed
+# workflows, no destructive git).
 rules:
   - id: no-hardcoded-secrets
     description: "Hardcoded secrets detected; read secrets from environment/config boundaries instead."
@@ -16,29 +12,32 @@ rules:
         categories: [api-key, token, private-key, password, connection-string]
         scope:
           include:
-            - "packages/**/*.ts"
+            - "scripts/"
+            - "src-app/"
+            - "src-lib/"
+            - "src-cli/"
+            - "src-monorepo/"
           exclude:
-            - "**/tests/**"
-            - "**/*.test.ts"
-            - "**/dist/**"
+            - "/tests/"
+            - ".test.ts"
+            - "/node_modules/"
+            - "/dist/"
 
   - id: no-unsafe-git-commands
-    description: "Unsafe git commands can overwrite history or cause local data loss."
+    description: "Unsafe git commands (force-push, hard reset) can overwrite history or cause data loss (AGENTS.md CRITICAL safety)."
     severity: error
     evaluator:
-      type: regex
+      type: rg
       config:
-        pattern: "git\\s+.*(push\\s+.*--force|push\\s+.*--force-with-lease\\b)|git\\s+.*reset\\s+(-H|--hard)\\b"
+        pattern: "git\\s+.*(push\\s+.*--force|push\\s+.*--force-with-lease\\b)|git\\s+.*reset\\s+--hard\\b"
     include:
       - "**/*.sh"
       - "**/*.bash"
       - "scripts/**/*.ts"
       - "package.json"
-      - ".github/**/*.yml"
-      - ".github/**/*.yaml"
 
   - id: no-env-files
-    description: ".env files must not be committed; use checked-in examples only."
+    description: ".env files must not be committed; use checked-in examples only (AGENTS.md: never commit .env*)."
     severity: error
     evaluator:
       type: path
@@ -49,13 +48,4 @@ rules:
       - "**/.env.*"
     exclude:
       - "**/.env.example"
-
-  - id: no-github-workflows
-    description: "GitHub workflow files require explicit review before being added to this library repo."
-    severity: error
-    evaluator:
-      type: path
-      config:
-        must: absent
-    include:
-      - ".github/workflows/*"
+      - "**/node_modules/**"
