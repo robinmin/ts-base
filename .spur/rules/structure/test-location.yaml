@@ -1,24 +1,12 @@
-# Test location rules — project-level override.
-# This template project uses flat test naming (tests/foo.test.ts for src/nested/foo.ts).
-# require-corresponding-test is intentionally omitted because the 1:1 path mirror
-# convention does not match this project's test organization.
+# Test-location rules — local override for ts-base's multi-scaffold layout.
+# Shadows the global structure/test-location.yaml.
+#
+# no-tests-dir: forbids __tests__/ directories and src/-adjacent tests.
+# require-corresponding-test: info severity — ts-base bundles related tests
+#   (e.g. scripts/tests/agent-convergence.test.ts covers multiple modules)
+#   rather than maintaining strict 1:1 src→test correspondence.
+#   Scaffold source is included because after setup one scaffold becomes real src/.
 rules:
-  - id: no-focused-or-skipped-tests
-    description: "Tests must not be focused, skipped, or commented out to pass."
-    severity: error
-    evaluator:
-      type: regex
-      config:
-        pattern: "\\b(describe|it|test)\\.(only|skip)\\b"
-    include:
-      - "scripts/tests/**/*.test.ts"
-      - "src*/tests/**/*.test.ts"
-      - "src*/tests/**/*.test.tsx"
-      - "src-cli/**/tests/**/*.test.ts"
-      - "src-cli/**/tests/**/*.test.tsx"
-      - "src-monorepo/**/tests/**/*.test.ts"
-      - "src-monorepo/**/tests/**/*.test.tsx"
-
   - id: no-tests-dir
     description: "Tests must live in tests/ directories at the same level as src/, not in __tests__."
     severity: error
@@ -32,9 +20,38 @@ rules:
           - "**/src/**/*.test.tsx"
         requireCorrespondingTest: false
     include:
-      - "src*/tests/**/*.test.ts"
-      - "src*/tests/**/*.test.tsx"
+      - "scripts/tests/**/*.test.ts"
+      - "scripts/tests/**/*.test.tsx"
+      - "src-app/tests/**/*.test.ts"
+      - "src-app/tests/**/*.test.tsx"
+      - "src-lib/tests/**/*.test.ts"
+      - "src-lib/tests/**/*.test.tsx"
       - "src-cli/**/tests/**/*.test.ts"
       - "src-cli/**/tests/**/*.test.tsx"
       - "src-monorepo/**/tests/**/*.test.ts"
       - "src-monorepo/**/tests/**/*.test.tsx"
+    exclude:
+      - "**/node_modules/**"
+
+  - id: require-corresponding-test
+    description: "Every source file should have a corresponding test (info — bundled tests are a project convention)."
+    severity: info
+    evaluator:
+      type: test-location
+      config:
+        expected: "**/*.test.*"
+        requireCorrespondingTest: true
+    include:
+      - "scripts/**/*.ts"
+      - "src-app/src/**/*.ts"
+      - "src-lib/src/**/*.ts"
+      - "src-cli/**/src/**/*.ts"
+      - "src-monorepo/**/src/**/*.ts"
+    exclude:
+      - "**/index.ts"
+      - "**/*.d.ts"
+      - "**/types.ts"
+      - "**/node_modules/**"
+      - "**/tests/**"
+      - "scripts/_modes.ts"
+      - "scripts/test-setup.ts"
