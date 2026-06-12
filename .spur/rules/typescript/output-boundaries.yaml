@@ -21,7 +21,7 @@ exclude:
 rules:
   - id: no-console-output
     description: "Prefer a structured output utility over direct console output."
-    severity: info
+    severity: error
     evaluator:
       type: rg
       config:
@@ -29,7 +29,7 @@ rules:
 
   - id: no-raw-stdout-stderr
     description: "Prefer a structured output utility over process.stdout/stderr.write directly."
-    severity: info
+    severity: error
     evaluator:
       type: rg
       config:
