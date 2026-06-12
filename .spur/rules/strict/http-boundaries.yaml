@@ -1,0 +1,69 @@
+# [STRICT — opt-in] HTTP-client boundaries. Adapted from ts-libs, re-scoped to
+# ts-base's multi-scaffold layout. NOT in recommended-pre-check.
+# Opt in via: spur rule run --preset strict-check  (or --rule <id>).
+include:
+  - "scripts/**/*.ts"
+  - "src-app/src/**/*.ts"
+  - "src-lib/src/**/*.ts"
+  - "src-cli/**/src/**/*.ts"
+  - "src-monorepo/**/src/**/*.ts"
+exclude:
+  - "**/tests/**"
+  - "**/*.test.ts"
+  - "**/node_modules/**"
+  - "**/dist/**"
+
+rules:
+  - id: no-direct-fetch
+    description: "Prefer a centralized HTTP client over ad-hoc fetch(...)."
+    severity: warning
+    evaluator:
+      type: rg
+      config:
+        pattern: "(^|[^.[:alnum:]_])fetch\\("
+
+  - id: no-globalthis-fetch
+    description: "Avoid globalThis.fetch(...); route HTTP through a client seam when one exists."
+    severity: warning
+    evaluator:
+      type: rg
+      config:
+        pattern: "globalThis\\.fetch\\("
+
+  - id: no-xml-http-request
+    description: "Do not use XMLHttpRequest in a Bun/Node codebase."
+    severity: error
+    evaluator:
+      type: rg
+      config:
+        pattern: "new\\s+XMLHttpRequest\\("
+    include:
+      - "scripts/**/*.ts"
+      - "src-app/src/**/*.ts"
+      - "src-lib/src/**/*.ts"
+      - "src-cli/**/src/**/*.ts"
+      - "src-monorepo/**/src/**/*.ts"
+
+  - id: no-third-party-http-clients
+    description: "Use the platform fetch / a project client instead of ad-hoc HTTP client libraries (axios/got/ky/ofetch/undici)."
+    severity: error
+    evaluator:
+      type: forbidden-import
+      config:
+        forbidden:
+          - specifier: "axios"
+          - specifier: "got"
+          - specifier: "ky"
+          - specifier: "ofetch"
+          - specifier: "undici"
+        scope:
+          include:
+            - "scripts/**/*.ts"
+            - "src-app/**/*.ts"
+            - "src-lib/**/*.ts"
+            - "src-cli/**/*.ts"
+            - "src-monorepo/**/*.ts"
+          exclude:
+            - "**/tests/**"
+            - "**/*.test.ts"
+            - "**/dist/**"

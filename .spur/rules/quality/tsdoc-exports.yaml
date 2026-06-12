@@ -1,0 +1,23 @@
+# TSDoc-on-exports — enforced by Spur's post-check gate.
+# Adapted from ts-libs and re-scoped to ts-base. Scaffold source is included
+# because after setup one scaffold becomes the real src/.
+# Severity: info — TSDoc is aspirational for this project; bump to error
+# once exports are documented.
+include:
+  - "scripts/**/*.ts"
+  - "src-app/src/**/*.ts"
+  - "src-lib/src/**/*.ts"
+  - "src-cli/**/src/**/*.ts"
+  - "src-monorepo/**/src/**/*.ts"
+exclude:
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/tests/**"
+rules:
+  - id: every-export-has-tsdoc
+    description: >
+      Exported declarations should have a preceding TSDoc comment (info — aspirational).
+    severity: info
+    enabled: true
+    evaluator:
+      type: tsdoc-export
