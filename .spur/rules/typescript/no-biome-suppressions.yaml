@@ -1,15 +1,18 @@
-# No Biome suppression comments — project-level override.
-# Exclude test files where noExplicitAny and useLiteralKeys suppressions are legitimate.
+# No Biome suppression comments in production source.
+# Adapted from ts-libs, re-scoped to ts-base's multi-scaffold layout.
+# scripts/setup.ts excluded — its `Record<string, any>` for free-form
+# package.json is a well-justified suppression.
 include:
-  - "src*/**/*.ts"
-  - "src*/**/*.tsx"
-  - "src-cli/**/*.ts"
-  - "src-cli/**/*.tsx"
-  - "src-monorepo/**/*.ts"
-  - "src-monorepo/**/*.tsx"
+  - "scripts/**/*.ts"
+  - "src-app/src/**/*.ts"
+  - "src-lib/src/**/*.ts"
+  - "src-cli/**/src/**/*.ts"
+  - "src-monorepo/**/src/**/*.ts"
 exclude:
   - "**/node_modules/**"
+  - "**/dist/**"
   - "**/tests/**"
+  - "scripts/setup.ts"
 rules:
   - id: no-biome-suppressions
     description: >
@@ -17,6 +20,6 @@ rules:
       rules.  Fix the underlying issue instead.
     severity: error
     evaluator:
-      type: regex
+      type: rg
       config:
         pattern: "biome-ignore"
