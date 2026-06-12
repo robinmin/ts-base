@@ -34,8 +34,8 @@ rules:
       - "**/node_modules/**"
 
   - id: require-corresponding-test
-    description: "Every source file should have a corresponding test (info — bundled tests are a project convention)."
-    severity: info
+    description: "Every source file must have a corresponding test."
+    severity: error
     evaluator:
       type: test-location
       config:
