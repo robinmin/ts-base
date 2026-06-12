@@ -1,9 +1,12 @@
-# Coverage gate — override to match project's .coverage dir.
-# Bun coverage reporter only emits packages/*/src/** files to lcov,
-# so no exclude patterns needed.
+# Coverage gate — per-file line coverage meets threshold from Bun's lcov output.
+# Adapted from ts-libs, re-scoped to ts-base's layout:
+#   - lcovPath kept at .coverage/lcov.info (ts-base's `bun run test` writes
+#     coverage there via --coverage-dir=.coverage)
+#   - include covers scripts/ + scaffold source
+#   - threshold kept at 90 matching bunfig.toml coverageThreshold
 rules:
   - id: coverage-gate
-    description: "Per-file line coverage meets threshold (read from lcov)"
+    description: "Per-file line coverage meets 90% threshold (read from lcov)"
     severity: error
     evaluator:
       type: coverage-gate
@@ -11,7 +14,14 @@ rules:
         lcovPath: .coverage/lcov.info
         threshold: 90
         include:
-          - "packages/**"
+          - "scripts/**"
+          - "src-app/src/**"
+          - "src-lib/src/**"
+          - "src-cli/**/src/**"
+          - "src-monorepo/**/src/**"
         exclude:
           - "**/node_modules/**"
-          - "**/drizzle/**"
+          - "**/vendors/**"
+          - "**/dist/**"
+          - "**/tests/**"
+          - "**/stubs/**"
