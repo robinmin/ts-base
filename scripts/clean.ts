@@ -3,6 +3,7 @@
 // runs `bun install` inside src-cli/ or src-monorepo/, or when the .turbo
 // caches grow stale.
 import { access, rm } from 'node:fs/promises';
+import { logger } from './lib/logger';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
@@ -32,8 +33,8 @@ for (const target of TARGETS) {
     const path = `${ROOT}/${target}`;
     if (await exists(path)) {
         await rm(path, { recursive: true, force: true });
-        console.info(`  removed ${target}`);
+        logger.info(`  removed ${target}`);
         removed += 1;
     }
 }
-console.info(removed === 0 ? 'nothing to clean.' : `cleaned ${removed} path(s).`);
+logger.info(removed === 0 ? 'nothing to clean.' : `cleaned ${removed} path(s).`);

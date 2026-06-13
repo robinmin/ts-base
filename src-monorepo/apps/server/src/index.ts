@@ -1,4 +1,5 @@
 import { config } from '@SCOPE/config';
+import { logger } from '@SCOPE/utils';
 import { app } from './app';
 
 const server = Bun.serve({
@@ -6,4 +7,4 @@ const server = Bun.serve({
     fetch: app.fetch,
 });
 
-console.info(`Server running at http://localhost:${server.port}`);
+logger.info(`Server running at http://localhost:${server.port}`);

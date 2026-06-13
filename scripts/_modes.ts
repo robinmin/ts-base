@@ -12,12 +12,14 @@ const SHARED_SCRIPTS = {
     check: 'bun run lint && bun run test',
 };
 
+/** Default package.json scripts block for app-mode projects. */
 export const APP_SCRIPTS = {
     ...SHARED_SCRIPTS,
     start: 'bun run src/index.ts',
     dev: 'bun --watch run src/index.ts',
 };
 
+/** Default package.json scripts block for lib-mode projects. */
 export const LIB_SCRIPTS = {
     ...SHARED_SCRIPTS,
     build: 'tsc -p tsconfig.build.json && bun scripts/fix-dist-esm-extensions.ts dist',

@@ -16,6 +16,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { $ } from 'bun';
+import { logger } from './lib/logger';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 const ALL_MODES = ['app', 'lib', 'cli', 'mono'] as const;
@@ -25,7 +26,7 @@ const argv = process.argv.slice(2);
 const requested = argv.length > 0 ? (argv as Mode[]) : ALL_MODES;
 for (const m of requested) {
     if (!(ALL_MODES as readonly string[]).includes(m)) {
-        console.error(`test-setup: unknown mode "${m}" (expected: ${ALL_MODES.join(', ')})`);
+        logger.error(`test-setup: unknown mode "${m}" (expected: ${ALL_MODES.join(', ')})`);
         process.exit(1);
     }
 }
@@ -34,7 +35,7 @@ let failed = 0;
 for (const mode of requested) {
     const label = `[${mode}]`;
     const tmp = await mkdtemp(join(tmpdir(), `ts-base-${mode}-`));
-    console.info(`${label} workspace: ${tmp}`);
+    logger.info(`${label} workspace: ${tmp}`);
     try {
         // Copy the template (excluding artifacts that would shadow the fresh install).
         await $`rsync -a --exclude node_modules --exclude .git --exclude .turbo --exclude .coverage --exclude dist ${ROOT}/ ${tmp}/`.quiet();
@@ -50,17 +51,17 @@ for (const mode of requested) {
             await $`bun run build`.cwd(tmp);
         }
 
-        console.info(`${label} OK`);
+        logger.info(`${label} OK`);
     } catch (err) {
         failed += 1;
-        console.error(`${label} FAILED:`, err instanceof Error ? err.message : err);
+        logger.error(`${label} FAILED:`, err instanceof Error ? err.message : err);
     } finally {
         await rm(tmp, { recursive: true, force: true });
     }
 }
 
 if (failed > 0) {
-    console.error(`\n${failed} mode(s) failed.`);
+    logger.error(`\n${failed} mode(s) failed.`);
     process.exit(1);
 }
-console.info(`\nAll ${requested.length} mode(s) passed.`);
+logger.info(`\nAll ${requested.length} mode(s) passed.`);

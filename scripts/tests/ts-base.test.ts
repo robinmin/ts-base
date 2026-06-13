@@ -176,17 +176,14 @@ describe('ts-base CLI', () => {
             }),
         );
 
-        const origStdout = process.stdout.write;
-        const origStderr = process.stderr.write;
-        const noop = (_data?: unknown, _cb?: unknown): boolean => true;
-        process.stdout.write = noop as typeof process.stdout.write;
-        process.stderr.write = noop as typeof process.stderr.write;
+        const origWrite = Bun.write;
+        // biome-ignore lint/suspicious/noExplicitAny: suppressing test output via Bun.write override
+        Bun.write = (() => Promise.resolve(0)) as any;
         try {
             expect(await runCli(['unknown'])).toBe(1);
             expect(await runCli(['converge', 'review', '--review', reviewPath])).toBe(0);
         } finally {
-            process.stdout.write = origStdout;
-            process.stderr.write = origStderr;
+            Bun.write = origWrite;
         }
     });
 });

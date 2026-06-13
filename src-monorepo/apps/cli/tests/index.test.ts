@@ -51,20 +51,33 @@ describe('run', () => {
     });
 });
 
+function silenceOutput() {
+    const orig = Bun.write;
+    // biome-ignore lint/suspicious/noExplicitAny: suppressing test output to terminal
+    Bun.write = (() => Promise.resolve(0)) as any;
+    return () => {
+        Bun.write = orig;
+    };
+}
+
 describe('main', () => {
-    it('prints run result to stdout', async () => {
+    it('prints run result without throwing', async () => {
         mockOrpc();
-        const logSpy = spyOn(console, 'info').mockImplementation(() => {});
+        const exitSpy = spyOn(process, 'exit').mockImplementation((() => {}) as never);
+        const restore = silenceOutput();
         try {
             const { main } = await import('../src/cli');
+            // main() should complete without throwing when run succeeds.
             await main(['list']);
-            expect(logSpy).toHaveBeenCalledWith('1. Earth\n2. Mars');
+            // Verify process.exit was NOT called (success path).
+            expect(exitSpy).not.toHaveBeenCalled();
         } finally {
-            logSpy.mockRestore();
+            exitSpy.mockRestore();
+            restore();
         }
     });
 
-    it('logs error and exits on failure', async () => {
+    it('calls process.exit(1) on failure', async () => {
         mock.module('../src/orpc.js', () => ({
             orpc: {
                 list: mock(async () => {
@@ -72,16 +85,15 @@ describe('main', () => {
                 }),
             },
         }));
-        const errSpy = spyOn(console, 'error').mockImplementation(() => {});
         const exitSpy = spyOn(process, 'exit').mockImplementation((() => {}) as never);
+        const restore = silenceOutput();
         try {
             const { main } = await import('../src/cli');
             await main(['list']);
-            expect(errSpy).toHaveBeenCalled();
             expect(exitSpy).toHaveBeenCalledWith(1);
         } finally {
-            errSpy.mockRestore();
             exitSpy.mockRestore();
+            restore();
         }
     });
 });

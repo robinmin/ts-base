@@ -148,6 +148,7 @@ async function discoverConfigs(options: ConvergenceScanOptions, candidates: RawC
     }
 }
 
+/** Scan a source project for importable skills, commands, and configs. */
 export async function discoverCandidates(options: ConvergenceScanOptions): Promise<RawCandidate[]> {
     const sourceProject = options.sourceProject;
     const normalizedOptions = { ...options, sourceProject };

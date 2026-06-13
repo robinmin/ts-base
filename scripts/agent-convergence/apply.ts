@@ -14,6 +14,11 @@ function canApply(candidate: CapabilityCandidate, review: CapabilityReview): boo
     return candidate.type === 'skill' || candidate.type === 'command' || candidate.type === 'config';
 }
 
+/**
+ *  Apply only explicitly approved candidates to the target project. Re-checks
+ *  classification from live source content so content changes between scan and
+ *  apply cannot bypass the blocklist.
+ */
 export async function applyApprovedCandidates(review: CapabilityReview, approvedIds: string[]): Promise<ApplyResult> {
     const approved = new Set(approvedIds);
     const result: ApplyResult = { applied: [], skipped: [], blocked: [] };

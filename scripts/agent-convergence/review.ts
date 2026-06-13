@@ -36,6 +36,7 @@ async function proposeChange(candidate: CapabilityCandidate): Promise<ProposedCh
     };
 }
 
+/** Build a capability review from classified candidates, diffing existing destinations. */
 export async function createReview(
     options: ConvergenceScanOptions,
     candidates: CapabilityCandidate[],
@@ -68,6 +69,7 @@ function escapeTableCell(text: string): string {
     return text.replaceAll('|', '\\|');
 }
 
+/** Render a capability review as a markdown report. */
 export function renderReview(review: CapabilityReview): string {
     const lines = [
         '# Agent Capability Convergence Review',
@@ -107,6 +109,7 @@ export function renderReview(review: CapabilityReview): string {
     return `${lines.join('\n')}\n`;
 }
 
+/** Persist a review as JSON and markdown files on disk. */
 export async function writeReviewArtifacts(
     review: CapabilityReview,
     reviewDir: string,
@@ -120,6 +123,7 @@ export async function writeReviewArtifacts(
     return { jsonPath, markdownPath };
 }
 
+/** Read a serialized review artifact from disk. */
 export async function readReview(path: string): Promise<CapabilityReview> {
     return (await Bun.file(path).json()) as CapabilityReview;
 }

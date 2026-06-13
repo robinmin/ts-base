@@ -31,6 +31,7 @@ const OUTSIDE_ROOT_MUTATION_PATTERNS = [/\brm\s+(?:-[a-zA-Z]+\s+)*(?:\/(?!tmp\b)
 const CODE_FILE_EXTENSIONS = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/i;
 const REUSABLE_CODE_PATTERNS = [/\bexport\s+(?:default\s+)?(?:async\s+)?(?:function|class|interface|type|const)\b/];
 
+/** Classification values whose candidates are always blocked from import. */
 export const BLOCKED_CLASSIFICATIONS: ReadonlySet<Classification> = new Set([
     'sensitive',
     'project-specific',
@@ -65,6 +66,7 @@ function looksLikeReusableCode(candidate: RawCandidate): boolean {
     );
 }
 
+/** Optional hints passed to {@link classifyCandidate} for project-aware filtering. */
 export interface ClassifyContext {
     /** Source-project identifiers (e.g. its package name) treated as project-specific markers. */
     projectMarkers?: string[];
@@ -121,6 +123,10 @@ function classifyRaw(
     return { classification: 'unknown', rationale };
 }
 
+/**
+ *  Classify a single discovered candidate using deterministic heuristics for
+ *  sensitivity, project specificity, code reusability, and mode scope.
+ */
 export function classifyCandidate(candidate: RawCandidate, context?: ClassifyContext): CapabilityCandidate {
     const result = classifyRaw(candidate, context);
     return {
@@ -136,6 +142,7 @@ export function classifyCandidate(candidate: RawCandidate, context?: ClassifyCon
     };
 }
 
+/** Classify a batch of raw candidates. */
 export function classifyCandidates(candidates: RawCandidate[], context?: ClassifyContext): CapabilityCandidate[] {
     return candidates.map((candidate) => classifyCandidate(candidate, context));
 }

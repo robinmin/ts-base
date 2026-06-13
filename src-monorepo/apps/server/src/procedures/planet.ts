@@ -12,6 +12,7 @@ function nextId(): number {
 }
 
 // Test-only: reset the in-memory store between suites.
+/** Reset the in-memory planet store (for tests only). */
 export function _resetPlanets(): void {
     planets.length = 0;
     idCounter = 0;
@@ -19,6 +20,7 @@ export function _resetPlanets(): void {
 
 const os = implement(planetContract);
 
+/** oRPC procedure: list all planets. */
 export const listPlanet = os.list
     .handler(async ({ input }) => {
         const start = input.cursor;
@@ -27,6 +29,7 @@ export const listPlanet = os.list
     })
     .callable();
 
+/** oRPC procedure: find a planet by id. */
 export const findPlanet = os.find
     .handler(async ({ input }) => {
         const planet = planets.find((p) => p.id === input.id);
@@ -37,6 +40,7 @@ export const findPlanet = os.find
     })
     .callable();
 
+/** oRPC procedure: create a new planet. */
 export const createPlanet = os.create
     .handler(async ({ input }) => {
         const planet: Planet = { id: nextId(), ...input };
@@ -45,6 +49,7 @@ export const createPlanet = os.create
     })
     .callable();
 
+/** Aggregated oRPC router for planet procedures. */
 export const router = os.router({
     list: listPlanet,
     find: findPlanet,

@@ -1,8 +1,10 @@
+import { logger } from '@SCOPE/utils';
 import { ORPCError, onError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/fetch';
 import { Hono } from 'hono';
 import { router } from './procedures/planet';
 
+/** Hono application instance with oRPC handler mounted at /rpc. */
 export const app = new Hono();
 
 // Health check — vanilla Hono route, not an RPC procedure.
@@ -15,7 +17,7 @@ const handler = new RPCHandler(router, {
     interceptors: [
         onError((error) => {
             if (error instanceof ORPCError) return;
-            console.error(error);
+            logger.error(error);
         }),
     ],
 });

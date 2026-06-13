@@ -11,4 +11,5 @@ const link = new RPCLink({
     url: process.env.API_URL ?? 'http://localhost:3000/rpc',
 });
 
+/** Typed oRPC client for the monorepo server contract. */
 export const orpc: ContractRouterClient<typeof planetContract> = createORPCClient(link);

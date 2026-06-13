@@ -11,4 +11,5 @@ const link = new RPCLink({
     url: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/rpc',
 });
 
+/** Typed oRPC client for the server contract, from the web app. */
 export const orpc: ContractRouterClient<typeof planetContract> = createORPCClient(link);

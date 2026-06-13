@@ -5,11 +5,8 @@
     "": {
       "name": "@SCOPE/root",
       "devDependencies": {
-        "@types/bun": "latest",
+        "@types/bun": "1.3.14",
         "turbo": "^2.9.14",
-      },
-      "peerDependencies": {
-        "typescript": "^6",
       },
     },
     "apps/cli": {
@@ -18,23 +15,11 @@
         "cli": "./src/index.ts",
       },
       "dependencies": {
-        "@SCOPE/config": "workspace:*",
         "@SCOPE/utils": "workspace:*",
-        "@commander-js/extra-typings": "^14.0.0",
         "commander": "^14.0.0",
       },
       "devDependencies": {
-        "@types/bun": "latest",
-      },
-    },
-    "packages/config": {
-      "name": "@SCOPE/config",
-      "dependencies": {
-        "convict": "^6.2.5",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "@types/convict": "^6.1.6",
+        "@types/bun": "1.3.14",
       },
     },
     "packages/utils": {
@@ -43,18 +28,14 @@
         "zod": "^3.24.0",
       },
       "devDependencies": {
-        "@types/bun": "latest",
+        "@types/bun": "1.3.14",
       },
     },
   },
   "packages": {
     "@SCOPE/cli": ["@SCOPE/cli@workspace:apps/cli"],
 
-    "@SCOPE/config": ["@SCOPE/config@workspace:packages/config"],
-
     "@SCOPE/utils": ["@SCOPE/utils@workspace:packages/utils"],
-
-    "@commander-js/extra-typings": ["@commander-js/extra-typings@14.0.0", "", { "peerDependencies": { "commander": "~14.0.0" } }, "sha512-hIn0ncNaJRLkZrxBIp5AsW/eXEHNKYQBh0aPdoUqNgD+Io3NIykQqpKFyKcuasZhicGaEZJX/JBSIkZ4e5x8Dg=="],
 
     "@turbo/darwin-64": ["@turbo/darwin-64@2.9.15", "", { "os": "darwin", "cpu": "x64" }, "sha512-nnDo9R1Df+s2x6jxlERtbg7xRpuicf8p4J2krcnjeaMBt3q9V41pGXa4t9YM2Y4ozozsVJ+CH405CJUrWIQK4Q=="],
 
@@ -70,25 +51,15 @@
 
     "@types/bun": ["@types/bun@1.3.14", "", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
-    "@types/convict": ["@types/convict@6.1.6", "", { "dependencies": { "@types/node": "*" } }, "sha512-1B6jqWHWQud+7yyWAqbxnPmzlHrrOtJzZr1DhhYJ/NbpS4irfZSnq+N5Fm76J9LNRlUZvCmYxTVhhohWRvtqHw=="],
-
     "@types/node": ["@types/node@25.9.1", "", { "dependencies": { "undici-types": ">=7.24.0 <7.24.7" } }, "sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg=="],
 
     "bun-types": ["bun-types@1.3.14", "", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "commander": ["commander@14.0.3", "", {}, "sha512-H+y0Jo/T1RZ9qPP4Eh1pkcQcLRglraJaSLoyOtHxu6AapkjWVCy2Sit1QQ4x3Dng8qDlSsZEet7g5Pq06MvTgw=="],
 
-    "convict": ["convict@6.2.5", "", { "dependencies": { "lodash.clonedeep": "^4.5.0", "yargs-parser": "^20.2.7" } }, "sha512-JtXpxqDqJ8P0UwEHwhxLzCIXQy97vlYBZR222Sbzb1q1Erex9ASrztJ29SyhWFQjod1AeFBaPzEEC8YvtZMIYg=="],
-
-    "lodash.clonedeep": ["lodash.clonedeep@4.5.0", "", {}, "sha512-H5ZhCF25riFd9uB5UCkVKo61m3S/xZk1x4wA6yp/L3RFP6Z/eHH1ymQcGLo7J3GMPfm0V/7m1tryHuGVxpqEBQ=="],
-
     "turbo": ["turbo@2.9.15", "", { "optionalDependencies": { "@turbo/darwin-64": "2.9.15", "@turbo/darwin-arm64": "2.9.15", "@turbo/linux-64": "2.9.15", "@turbo/linux-arm64": "2.9.15", "@turbo/windows-64": "2.9.15", "@turbo/windows-arm64": "2.9.15" }, "bin": { "turbo": "bin/turbo" } }, "sha512-VpKvD9Z0Hu/xrGUAYX1wnhfpqv835wIwGqeKfulvBPTOcDap0E3nFwyzCAVV85fB1sBcBDEfTP+7FSW7GzwWSQ=="],
 
-    "typescript": ["typescript@6.0.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw=="],
-
     "undici-types": ["undici-types@7.24.6", "", {}, "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="],
-
-    "yargs-parser": ["yargs-parser@20.2.9", "", {}, "sha512-y11nGElTIV+CT3Zv9t7VKl+Q3hTQoT9a1Qzezhhl6Rp21gJ/IVTW7Z3y9EWXhuUBC2Shnf+DX0antecpAwSP8w=="],
 
     "zod": ["zod@3.25.76", "", {}, "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ=="],
   }

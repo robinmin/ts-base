@@ -1,12 +1,14 @@
 import { z } from '@SCOPE/utils';
 import { oc } from '@orpc/contract';
 
+/** Zod schema for a planet object. */
 export const PlanetSchema = z.object({
     id: z.number().int().min(1),
     name: z.string(),
     description: z.string().optional(),
 });
 
+/** oRPC contract: list planets. */
 export const listPlanet = oc
     .input(
         z.object({
@@ -16,12 +18,16 @@ export const listPlanet = oc
     )
     .output(z.array(PlanetSchema));
 
+/** oRPC contract: find a planet by id. */
 export const findPlanet = oc.input(PlanetSchema.pick({ id: true })).output(PlanetSchema);
 
+/** oRPC contract: create a planet. */
 export const createPlanet = oc.input(PlanetSchema.omit({ id: true })).output(PlanetSchema);
 
+/** Inferred planet type from the Zod schema. */
 export type Planet = z.infer<typeof PlanetSchema>;
 
+/** Aggregated planet oRPC contract. */
 export const planetContract = {
     list: listPlanet,
     find: findPlanet,

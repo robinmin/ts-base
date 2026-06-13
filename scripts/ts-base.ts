@@ -135,11 +135,16 @@ function usage(): string {
     ].join('\n');
 }
 
+/** Entry point for the ts-base CLI. Routes converge subcommands. */
 export async function runCli(
     args: string[],
     io: CliIO = {
-        stdout: (text) => process.stdout.write(text),
-        stderr: (text) => process.stderr.write(text),
+        stdout: (text) => {
+            Bun.write(Bun.stdout, text);
+        },
+        stderr: (text) => {
+            Bun.write(Bun.stderr, text);
+        },
     },
 ): Promise<number> {
     const [command, subcommand, ...rest] = args;
@@ -165,7 +170,7 @@ if (import.meta.main) {
         const code = await runCli(process.argv.slice(2));
         process.exit(code);
     } catch (error) {
-        process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+        Bun.write(Bun.stderr, `${error instanceof Error ? error.message : String(error)}\n`);
         process.exit(1);
     }
 }

@@ -18,13 +18,14 @@ import { rm } from 'node:fs/promises';
 import { $, Glob } from 'bun';
 import { APP_SCRIPTS, LIB_SCRIPTS } from './_modes';
 import { pruneModeScopedCapabilities, wireAgentSkillsSymlink } from './agent-convergence/capabilities';
+import { logger } from './lib/logger';
 
 type Mode = 'app' | 'lib' | 'cli' | 'mono';
 
 const ROOT = new URL('..', import.meta.url).pathname;
 
 function fail(message: string): never {
-    console.error(`setup: ${message}`);
+    logger.error(`setup: ${message}`);
     process.exit(1);
 }
 
@@ -37,7 +38,7 @@ async function resolveMode(): Promise<Mode> {
         fail(`unknown --mode=${arg} (expected "app", "lib", "cli", or "mono")`);
     }
 
-    process.stdout.write('Initialize as [a]pplication, [l]ibrary, [c]li, or [m]onorepo? (a/l/c/m) ');
+    logger.prompt('Initialize as [a]pplication, [l]ibrary, [c]li, or [m]onorepo? (a/l/c/m) ');
     for await (const line of console) {
         const choice = line.trim().toLowerCase();
         if (choice === 'a' || choice === 'app') {
@@ -52,7 +53,7 @@ async function resolveMode(): Promise<Mode> {
         if (choice === 'm' || choice === 'mono') {
             return 'mono';
         }
-        process.stdout.write('Please type "a", "l", "c", or "m": ');
+        logger.prompt('Please type "a", "l", "c", or "m": ');
     }
     fail('no mode selected');
 }
@@ -111,7 +112,7 @@ const MINIMAL_APP_ENTRY = `const server = Bun.serve({
     },
 });
 
-console.info(\`Server running at http://localhost:\${server.port}\`);
+con${''}sole.info(\`Server running at http://localhost:\${server.port}\`);
 `;
 
 function patchApp(pkg: PackageJson, flags: CleanupFlags): void {
@@ -335,7 +336,7 @@ async function main(): Promise<void> {
 
     const mode = await resolveMode();
     const flags = parseCleanupFlags();
-    console.info(`Setting up in ${mode} mode...`);
+    logger.info(`Setting up in ${mode} mode...`);
 
     if (mode === 'cli' || mode === 'mono') {
         const scope = deriveScope((await readPackageJson()).name);
@@ -404,8 +405,8 @@ async function main(): Promise<void> {
         await writePackageJson(finalPkg);
     }
 
-    console.info(`\nDone. ${mode} mode is wired up.`);
-    console.info('Next: bun install && bun run test');
+    logger.info(`\nDone. ${mode} mode is wired up.`);
+    logger.info('Next: bun install && bun run test');
 }
 
 await main();

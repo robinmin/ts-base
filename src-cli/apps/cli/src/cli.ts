@@ -1,6 +1,7 @@
-import { add } from '@SCOPE/utils';
+import { add, logger } from '@SCOPE/utils';
 import { Command } from 'commander';
 
+/** Create a Commander CLI program with an add subcommand. */
 export function createProgram(): Command {
     const program = new Command().name('cli').description('Example CLI application').version('0.0.0');
 
@@ -12,7 +13,7 @@ export function createProgram(): Command {
         .argument('<a>', 'first number', parseIntArg)
         .argument('<b>', 'second number', parseIntArg)
         .action((a, b) => {
-            process.stdout.write(`${add(a, b)}\n`);
+            logger.out(`${add(a, b)}\n`);
         });
 
     return program;
