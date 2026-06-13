@@ -5,6 +5,10 @@ import { classifyCandidates } from './agent-convergence/classify';
 import { discoverCandidates } from './agent-convergence/discovery';
 import { createReview, readReview, renderReview, writeReviewArtifacts } from './agent-convergence/review';
 import type { CandidateTypeFilter, Mode } from './agent-convergence/types';
+import { runClean } from './divergence/clean';
+import { runScaffoldInstall } from './divergence/scaffold-install';
+import { runSetup } from './divergence/setup';
+import { runTestSetup } from './divergence/test-setup';
 
 interface CliIO {
     stdout: (text: string) => void;
@@ -127,6 +131,10 @@ async function apply(args: string[], io: CliIO): Promise<number> {
 function usage(): string {
     return [
         'Usage:',
+        '  bun run scripts/ts-base.ts setup [--mode <app|lib|cli|mono>] [--no-db] [--no-config]',
+        '  bun run scripts/ts-base.ts clean',
+        '  bun run scripts/ts-base.ts test-setup [app|lib|cli|mono ...]',
+        '  bun run scripts/ts-base.ts ensure-scaffold-installs',
         '  bun run scripts/ts-base.ts converge scan --from <path> --mode <app|lib|cli|mono>',
         '      [--type <all|skills|commands|configs|code>] [--review-dir <dir>] [--review-id <id>]',
         '  bun run scripts/ts-base.ts converge review --review <review.json>',
@@ -135,7 +143,9 @@ function usage(): string {
     ].join('\n');
 }
 
-/** Entry point for the ts-base CLI. Routes converge subcommands. */
+const PROJECT_ROOT = resolve(import.meta.dir, '..');
+
+/** Entry point for the ts-base CLI. Routes all subcommands. */
 export async function runCli(
     args: string[],
     io: CliIO = {
@@ -147,20 +157,35 @@ export async function runCli(
         },
     },
 ): Promise<number> {
-    const [command, subcommand, ...rest] = args;
-    if (command !== 'converge') {
-        io.stderr(usage());
-        return 1;
+    const [command, ...rest] = args;
+
+    if (command === 'setup') {
+        return runSetup(rest, PROJECT_ROOT);
     }
-    if (subcommand === 'scan') {
-        return scan(rest, io);
+    if (command === 'clean') {
+        return runClean(PROJECT_ROOT);
     }
-    if (subcommand === 'review') {
-        return summarize(rest, io);
+    if (command === 'test-setup') {
+        return runTestSetup(rest, PROJECT_ROOT);
     }
-    if (subcommand === 'apply') {
-        return apply(rest, io);
+    if (command === 'ensure-scaffold-installs') {
+        await runScaffoldInstall(PROJECT_ROOT);
+        return 0;
     }
+
+    if (command === 'converge') {
+        const [subcommand, ...subRest] = rest;
+        if (subcommand === 'scan') {
+            return scan(subRest, io);
+        }
+        if (subcommand === 'review') {
+            return summarize(subRest, io);
+        }
+        if (subcommand === 'apply') {
+            return apply(subRest, io);
+        }
+    }
+
     io.stderr(usage());
     return 1;
 }
