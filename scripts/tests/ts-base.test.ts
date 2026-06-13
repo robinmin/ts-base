@@ -186,4 +186,42 @@ describe('ts-base CLI', () => {
             Bun.write = origWrite;
         }
     });
+
+    it('routes unknown top-level command', async () => {
+        const output: string[] = [];
+        const errors: string[] = [];
+        const code = await runCli(['bogus'], {
+            stdout: (text) => output.push(text),
+            stderr: (text) => errors.push(text),
+        });
+        expect(code).toBe(1);
+        expect(errors.join('\n')).toContain('Usage:');
+        expect(errors.join('\n')).toContain('setup');
+        expect(errors.join('\n')).toContain('clean');
+        expect(errors.join('\n')).toContain('test-setup');
+        expect(errors.join('\n')).toContain('converge');
+    });
+
+    it('handles source project with invalid package.json gracefully', async () => {
+        const root = await tempRoot();
+        const source = join(root, 'bad-source');
+        const previousCwd = process.cwd();
+        const output: string[] = [];
+        const errors: string[] = [];
+        await write(join(source, '.claude/skills/example/SKILL.md'), '# Example\n\nReusable.\n');
+        // Invalid JSON in package.json triggers sourceProjectMarkers catch path
+        await write(join(source, 'package.json'), 'not-json');
+
+        try {
+            process.chdir(root);
+            const code = await runCli(['converge', 'scan', '--from', source, '--mode', 'app'], {
+                stdout: (text) => output.push(text),
+                stderr: (text) => errors.push(text),
+            });
+            // scan should still succeed — markers are informational
+            expect(code).toBe(0);
+        } finally {
+            process.chdir(previousCwd);
+        }
+    });
 });
