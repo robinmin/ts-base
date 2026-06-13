@@ -37,7 +37,7 @@ bun install
 bun run check
 ```
 
-After setup, the selected mode is promoted and unused scaffolds are deleted. `scripts/setup.ts` also prunes imported capabilities whose `supported-modes` annotation excludes the chosen mode and re-wires the `.agents/skills` adaptor symlink.
+After setup, the selected mode is promoted and unused scaffolds are deleted. Setup also prunes imported capabilities whose `supported-modes` annotation excludes the chosen mode and re-wires the `.agents/skills` adaptor symlink.
 
 ## Project Modes
 
@@ -50,9 +50,46 @@ Before setup the template ships four modes side by side:
 | `cli`  | `src-cli/`         | Bun workspace with `apps/cli` and shared `packages/{config,utils}`  |
 | `mono` | `src-monorepo/`    | Turborepo + Bun workspaces with `apps/{server,web,cli}` and shared `packages/{api,config,db,utils}` |
 
-Mode-specific contracts live in `AGENTS-<mode>.md` and `docs/00_ADR-<mode>.md` before setup. `scripts/setup.ts` swaps the selected files into `AGENTS.md` and `docs/00_ADR.md`.
+Mode-specific contracts live in `AGENTS-<mode>.md` and `docs/00_ADR-<mode>.md` before setup. Setup swaps the selected files into `AGENTS.md` and `docs/00_ADR.md`.
 
-## Convergence Workflow
+## CLI
+
+All tooling flows through a single entrypoint: `scripts/ts-base.ts`.
+
+```bash
+# Divergence — project setup and maintenance
+bun run scripts/ts-base.ts setup [--mode=<app|lib|cli|mono>] [--no-db] [--no-config]
+bun run scripts/ts-base.ts clean
+bun run scripts/ts-base.ts test-setup [app|lib|cli|mono ...]
+bun run scripts/ts-base.ts ensure-scaffold-installs
+
+# Convergence — import agent capabilities from source projects
+bun run scripts/ts-base.ts converge scan --from <path> --mode <app|lib|cli|mono>
+    [--type <all|skills|commands|configs|code>] [--review-dir <dir>] [--review-id <id>]
+bun run scripts/ts-base.ts converge review --review <review.json>
+bun run scripts/ts-base.ts converge apply --review <review.json> --approve <id[,id...]>
+```
+
+The `package.json` scripts are shortcuts to these subcommands:
+
+| Script | Maps to |
+| ------ | ------- |
+| `bun run setup` | `bun run scripts/ts-base.ts setup` |
+| `bun run clean` | `bun run scripts/ts-base.ts clean` |
+| `bun run test:setup` | `bun run scripts/ts-base.ts test-setup` |
+| `pretest` | `bun run scripts/ts-base.ts ensure-scaffold-installs` |
+
+### Divergence subcommands
+
+**`setup`** — Templates a new project from the selected mode scaffold. Accepts `--mode=<mode>` (interactive prompt if omitted), `--no-db` (skip database deps), `--no-config` (skip config + use minimal app entry).
+
+**`clean`** — Removes generated caches from template scaffolds (node_modules, dist, .turbo, .coverage).
+
+**`test-setup`** — End-to-end smoke test: copies the repo to a temp directory, runs setup + install + check for each specified mode. Defaults to all modes.
+
+**`ensure-scaffold-installs`** — Run by `pretest` before the test suite. Installs workspace deps in `src-cli/` and `src-monorepo/` and creates `@SCOPE/*` → `../../packages/*` symlinks in `node_modules/`.
+
+### Convergence workflow
 
 Convergence imports reusable project experience back into this template. The flow is review-first — `scan` never writes outside `docs/reviews/`:
 
@@ -65,14 +102,6 @@ bun run scripts/ts-base.ts converge review --review docs/reviews/<review-id>.jso
 
 # Apply only explicitly approved candidate IDs
 bun run scripts/ts-base.ts converge apply --review docs/reviews/<review-id>.json --approve candidate-id-1,candidate-id-2
-```
-
-Additional scan options:
-
-```bash
---type all|skills|commands|configs|code   # candidate type filter (default: all)
---review-dir <dir>                        # output directory (default: docs/reviews)
---review-id <id>                          # stable review identifier
 ```
 
 **Apply behavior:**
@@ -98,7 +127,7 @@ Candidate classes:
 
 - `.claude/skills/<name>/SKILL.md` is the canonical skill format.
 - `.claude/commands/<name>.md` is the canonical slash-command format.
-- `.agents/skills` is a symlink/adaptor target for other agents, wired by both `scripts/setup.ts` and `converge apply`.
+- `.agents/skills` is a symlink/adaptor target for other agents, wired by both setup and `converge apply`.
 - Mode-scoped capabilities carry a `supported-modes` frontmatter annotation so setup-time pruning can remove capabilities irrelevant to the chosen mode.
 - Cross-agent copies are avoided unless a generated adapter owns the conversion.
 - Every new skill, command, config, symlink, adapter, or rewrite requires explicit confirmation.
@@ -111,7 +140,6 @@ Spur is the quality harness used across Robin's projects. The `recommended-pre-c
 bun run check        # lint + tests
 bun run spur-check   # lint + Spur pre-check + tests + Spur post-check
 bun run check:full   # lint + tests (with snapshots)
-bun run spur-check:full  # full quality gate (verbose)
 ```
 
 All Spur rules are project-local (under `.spur/rules/`) and adapted to ts-base's multi-scaffold layout. Rules that govern runtime behavior (DB boundaries, TSDoc, output seams, test correspondence) cover all five source locations — `scripts/`, `src-app/`, `src-lib/`, `src-cli/`, and `src-monorepo/` — so the checks remain effective after a single mode is promoted.
@@ -126,41 +154,42 @@ Use this rule when convergence finds reusable code:
 - Move reusable runtime libraries, pure utilities, framework-agnostic components, shared validation helpers, reusable CLI primitives, and cross-project TypeScript modules to `~/xprojects/ts-libs`.
 - Do not write to `ts-libs` from a convergence scan. Produce a `ts-libs-candidate` proposal and handle extraction in a separate confirmed task.
 
-The current `ts-libs` monorepo contains packages such as `@gobing-ai/ts-utils`, `@gobing-ai/ts-runtime`, `@gobing-ai/ts-db`, `@gobing-ai/ts-infra`, `@gobing-ai/ts-ai-runner`, `@gobing-ai/ts-rule-engine`, `@gobing-ai/ts-dual-workflow-engine`, and `@gobing-ai/ts-llm-jsonl-importer`.
+## Source Layout
 
-## Scripts and Tooling
+```
+scripts/
+  ts-base.ts                  Unified CLI entrypoint (all subcommands)
+  _modes.ts                   Mode-specific script blocks
+  lib/
+    logger.ts                 Structured-output logger (Bun.write, silent flag)
+  divergence/                 Project setup modules
+    setup.ts                  Template initializer (exported pure functions + integration runner)
+    clean.ts                  Cache wiper
+    test-setup.ts             Smoke-test orchestrator (injectable testEachMode)
+    scaffold-install.ts       Workspace dep installer + @SCOPE symlink wiring
+  agent-convergence/          Capability import modules
+    types.ts                  Shared type definitions
+    paths.ts                  Project-root-safe path resolution
+    discovery.ts              Scan source projects for skills, commands, and configs
+    classify.ts               Deterministic classification heuristics
+    review.ts                 Build review artifacts with diffs + blocklists
+    apply.ts                  Apply approved candidates with live re-classification
+    capabilities.ts           Mode annotation, pruning, and symlink wiring
+  fix-dist-esm-extensions.ts  Patch emitted dist/*.js for Node-compatible ESM (lib mode)
+  smoke-dist-imports.ts       Verify built library imports resolve (lib mode)
+tests/
+  scripts/ -> ../scripts/tests   Symlink to satisfy Spur's require-corresponding-test convention
+src-app/                      Application scaffold
+src-lib/                      Library scaffold
+src-cli/                      CLI workspace scaffold
+src-monorepo/                 Monorepo scaffold
+```
 
-### CLI
+## Testing
 
-| Entrypoint | Purpose |
-| ---------- | ------- |
-| `scripts/ts-base.ts converge scan`   | Discover and classify agent capabilities from a source project |
-| `scripts/ts-base.ts converge review` | Render a review artifact as markdown |
-| `scripts/ts-base.ts converge apply`  | Write approved candidates to `.claude/` destinations |
-| `scripts/setup.ts`                   | Promote a single mode and remove unused scaffolds |
+Test files use `bun:test`. The `tests/scripts → ../scripts/tests` symlink satisfies Spur's `require-corresponding-test` path convention — source files at `scripts/divergence/<name>.ts` have corresponding tests at `tests/scripts/divergence/<name>.test.ts`.
 
-### Convergence modules
-
-| Module | Role |
-| ------ | ---- |
-| `scripts/agent-convergence/types.ts`       | Shared type definitions (candidates, classifications, review schema) |
-| `scripts/agent-convergence/paths.ts`       | Project-root-safe path resolution and canonical destination rules |
-| `scripts/agent-convergence/discovery.ts`   | Scan source projects for skills, commands, and configs |
-| `scripts/agent-convergence/classify.ts`    | Deterministic heuristics: sensitive, project-specific, mode-scoped, reusable code |
-| `scripts/agent-convergence/review.ts`      | Build review artifacts with destination diffs and blocked-candidate lists |
-| `scripts/agent-convergence/apply.ts`       | Apply approved candidates with live-content re-classification |
-| `scripts/agent-convergence/capabilities.ts`| Mode annotation, setup-time pruning, and symlink wiring |
-| `scripts/lib/logger.ts`                   | Structured-output seam using `Bun.write` (no raw console/stdout) |
-
-### Utility scripts
-
-| Script | Purpose |
-| ------ | ------- |
-| `scripts/clean.ts`                   | Wipe generated caches from template scaffolds |
-| `scripts/ensure-scaffold-installs.ts` | Install scaffold workspace deps and wire `@SCOPE/*` symlinks |
-| `scripts/test-setup.ts`              | End-to-end smoke test for `setup.ts` across all modes |
-| `scripts/fix-dist-esm-extensions.ts` | Patch emitted `dist/*.js` for Node-compatible ESM (lib mode) |
-| `scripts/smoke-dist-imports.ts`      | Verify built library imports resolve (lib mode) |
+Coverage target is line ≥ 90% and function ≥ 90% in aggregate. Tests that exercise output-producing code paths mute the logger via `logger.silent = true` to keep the terminal clean during test runs.
 
 ## Commands
 
@@ -168,31 +197,15 @@ The current `ts-libs` monorepo contains packages such as `@gobing-ai/ts-utils`, 
 | ------- | ----------- |
 | `bun run setup`       | Choose and promote app/lib/cli/mono mode |
 | `bun run clean`       | Remove generated caches from template scaffolds |
+| `bun run test:setup`  | Smoke-test setup across all four modes |
 | `bun run lint`        | Biome check (errors + warnings) + TypeScript typecheck |
 | `bun run typecheck`   | TypeScript typecheck only |
 | `bun run format`      | Biome autofix |
 | `bun run autofix`     | Format then typecheck |
-| `bun run test`        | Bun tests with coverage (95 tests across 49 files) |
+| `bun run test`        | Bun tests with coverage (165 tests across 51 files) |
 | `bun run test:full`   | Tests with snapshot updates |
-| `bun run test:setup`  | Smoke-test setup.ts across all four modes |
 | `bun run check`       | Lint + tests |
-| `bun run check:full`  | Lint + full tests |
 | `bun run spur-check`  | Full quality gate: lint + Spur pre-check + tests + Spur post-check |
-| `bun run spur-check:full` | Full quality gate (verbose) |
-
-## Testing
-
-Tests live in `scripts/tests/` and `src*/tests/` (scaffold-relative), using `bun:test`. A top-level `tests/` directory exists as a symlink (`tests/scripts -> ../scripts/tests`) to satisfy Spur's `require-corresponding-test` path convention.
-
-Coverage target is line ≥ 90% and function ≥ 90% in aggregate (`bunfig.toml`'s `coverageThreshold`). Tests that exercise output-producing code paths (logger, CLI handlers, scaffold `main` functions) suppress `Bun.write` during execution to keep the terminal clean.
-
-## Documentation Map
-
-- `AGENTS.md` — coding-agent operating contract.
-- `docs/00_ADR.md` — architecture decision record for this template/tooling direction.
-- `docs/01_PRD.md` — product brief and scope.
-- `docs/03_ARCHITECTURE.md` — architecture overview and design decisions.
-- `docs/00_ADR-app.md`, `docs/00_ADR-lib.md`, `docs/00_ADR-cli.md`, `docs/00_ADR-mono.md` — mode-specific ADRs swapped during setup.
 
 ## Verification Gate
 
@@ -208,6 +221,14 @@ For project-direction, convergence, or architecture-rule changes, also run:
 ```bash
 bun run spur-check
 ```
+
+## Documentation Map
+
+- `AGENTS.md` — coding-agent operating contract.
+- `docs/00_ADR.md` — architecture decision record for this template/tooling direction.
+- `docs/01_PRD.md` — product brief and scope.
+- `docs/03_ARCHITECTURE.md` — architecture overview and design decisions.
+- `docs/00_ADR-app.md`, `docs/00_ADR-lib.md`, `docs/00_ADR-cli.md`, `docs/00_ADR-mono.md` — mode-specific ADRs swapped during setup.
 
 ## Security
 
