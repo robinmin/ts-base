@@ -14,7 +14,7 @@ kanban-plugin: board
 
 ## 🟡 WIP
 
-<!-- No tasks in WIP -->
+- [.] 0019_Consolidate_divergence_scripts_into_ts-base_CLI_subcommands [🟡 plan 🎨 design]
 
 ## 🟠 Testing
 
