@@ -7,6 +7,7 @@ describe('logger', () => {
     let origWrite: typeof Bun.write;
 
     beforeEach(() => {
+        logger.silent = false;
         stdoutCalls = [];
         stderrCalls = [];
         origWrite = Bun.write;
