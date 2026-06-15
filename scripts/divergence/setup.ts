@@ -1,4 +1,5 @@
-import { rm } from 'node:fs/promises';
+import { readdir, rm } from 'node:fs/promises';
+import { join, relative } from 'node:path';
 import { $ } from 'bun';
 import { APP_SCRIPTS, LIB_SCRIPTS } from '../_modes';
 import { pruneModeScopedCapabilities, wireAgentSkillsSymlink } from '../agent-convergence/capabilities';
@@ -240,6 +241,31 @@ export function normalizePromotedScopeImports(text: string, scope: string): stri
         );
 }
 
+/**
+ * Replace symlinks in src-cli/tooling with the real file content from
+ * src-monorepo/tooling. degit rewrites relative symlinks to absolute
+ * degit-cache paths that dangle after extraction, breaking `cp -RL`.
+ */
+async function resolveToolingSymlinks(srcTooling: string, realTooling: string): Promise<void> {
+    async function walk(dir: string): Promise<void> {
+        for (const entry of await readdir(dir, { withFileTypes: true })) {
+            const full = join(dir, entry.name);
+            if (entry.isSymbolicLink()) {
+                const rel = relative(srcTooling, full);
+                const real = join(realTooling, rel);
+                if (await Bun.file(real).exists()) {
+                    const content = await Bun.file(real).text();
+                    await rm(full, { force: true });
+                    await Bun.write(full, content);
+                }
+            } else if (entry.isDirectory()) {
+                await walk(full);
+            }
+        }
+    }
+    await walk(srcTooling);
+}
+
 async function setupWorkspace(root: string, mode: 'cli' | 'mono', scope: string): Promise<void> {
     const srcDir = mode === 'cli' ? 'src-cli' : 'src-monorepo';
     const srcRoot = `${root}/${srcDir}`;
@@ -247,7 +273,10 @@ async function setupWorkspace(root: string, mode: 'cli' | 'mono', scope: string)
     for (const entry of ['apps', 'packages', 'turbo.json']) {
         await $`mv ${srcRoot}/${entry} ${root}/${entry}`.quiet();
     }
-    await $`cp -RL ${srcRoot}/tooling ${root}/tooling`.quiet();
+    if (mode === 'cli') {
+        await resolveToolingSymlinks(`${srcRoot}/tooling`, `${root}/src-monorepo/tooling`);
+    }
+    await $`cp -R ${srcRoot}/tooling ${root}/tooling`.quiet();
     const flatPkg = await readPackageJson(root);
     const wsPkg = (await Bun.file(`${srcRoot}/package.json`).json()) as PackageJson;
     wsPkg.name = flatPkg.name ?? 'app';
