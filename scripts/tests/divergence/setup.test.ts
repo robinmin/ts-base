@@ -704,7 +704,6 @@ describe('runSetupDirect (cli mode)', () => {
         await writeFile(join(root, 'tsconfig.app.json'), '{}');
         await writeFile(join(root, 'tsconfig.lib.json'), '{}');
         await writeFile(join(root, 'src-cli', 'package.json'), JSON.stringify({ name: 'cli-root' }));
-        await writeFile(join(root, 'src-cli', 'turbo.json'), '{}');
         await mkdir(join(root, '.github'), { recursive: true });
         for (const m of ['app', 'lib', 'cli', 'mono']) {
             await mkdir(join(root, '.github', `workflows-${m}`), { recursive: true });

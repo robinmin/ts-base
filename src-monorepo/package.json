@@ -9,17 +9,23 @@
     ],
     "scripts": {
         "prepare": "lefthook install",
-        "dev": "turbo run dev",
-        "build": "turbo run build",
-        "test": "turbo run test",
-        "typecheck": "turbo run typecheck",
-        "lint": "biome check . && turbo run typecheck",
+        "dev": "bun run dev",
+        "build": "bun run build",
+        "test": "bun run test",
+        "test:full": "bun run test:full",
+        "test-pre-check": "spur rule run --preset recommended-pre-check --fail-on warning --verbose",
+        "test-post-check": "spur rule run --preset recommended-post-check --fail-on warning --verbose",
+        "test-pre-check:full": "spur rule run --preset recommended-pre-check --fail-on warning --verbose",
+        "test-post-check:full": "spur rule run --preset recommended-post-check --fail-on warning --verbose",
+        "spur-check": "bun run lint && bun run test-pre-check && bun run test && bun run test-post-check",
+        "typecheck": "bun run typecheck",
+        "lint": "biome check . && bun run typecheck",
         "format": "biome check . --write",
-        "autofix": "bun run format && turbo run typecheck",
-        "check": "bun run lint && bun run test"
+        "autofix": "bun run format && bun run typecheck",
+        "check": "bun run lint && bun run test",
+        "check:full": "bun run lint && bun run test:full"
     },
     "devDependencies": {
-        "@types/bun": "1.3.14",
-        "turbo": "^2.9.14"
+        "@types/bun": "1.3.14"
     }
 }

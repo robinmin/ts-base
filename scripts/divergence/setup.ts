@@ -1,4 +1,4 @@
-import { readdir, rm } from 'node:fs/promises';
+import { readdir, rm, symlink } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import { $ } from 'bun';
 import { APP_SCRIPTS, LIB_SCRIPTS } from '../_modes';
@@ -270,7 +270,7 @@ async function setupWorkspace(root: string, mode: 'cli' | 'mono', scope: string)
     const srcDir = mode === 'cli' ? 'src-cli' : 'src-monorepo';
     const srcRoot = `${root}/${srcDir}`;
 
-    for (const entry of ['apps', 'packages', 'turbo.json']) {
+    for (const entry of ['apps', 'packages']) {
         await $`mv ${srcRoot}/${entry} ${root}/${entry}`.quiet();
     }
     if (mode === 'cli') {
@@ -341,6 +341,20 @@ async function setupFlat(root: string, mode: 'app' | 'lib', flags: CleanupFlags)
     await moveWorkflows(root, mode);
 }
 
+/**
+ * Recreate CLAUDE.md and GEMINI.md symlinks pointing to AGENTS.md.
+ * degit rewrites them to absolute degit-cache paths that dangle; after
+ * the chosen AGENTS-<mode>.md is moved to AGENTS.md, these must be
+ * repaired to point at the real file.
+ */
+async function repairAgentSymlinks(root: string): Promise<void> {
+    for (const name of ['CLAUDE.md', 'GEMINI.md']) {
+        const path = `${root}/${name}`;
+        await rm(path, { force: true });
+        await symlink('AGENTS.md', path);
+    }
+}
+
 /** Run the one-shot template initializer. */
 export async function runSetup(args: string[], projectRoot: string): Promise<number> {
     if (await Bun.file(`${projectRoot}/src/index.ts`).exists()) {
@@ -367,6 +381,7 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
     if (await Bun.file(agentsSrc).exists()) {
         await $`mv ${agentsSrc} ${projectRoot}/AGENTS.md`.quiet();
     }
+    await repairAgentSymlinks(projectRoot);
 
     // Swap ADR: keep chosen mode's, drop rest.
     for (const m of ['app', 'lib', 'cli', 'mono']) {
@@ -444,6 +459,7 @@ export async function runSetupDirect(mode: Mode, flags: CleanupFlags, projectRoo
     if (await Bun.file(agentsSrc).exists()) {
         await $`mv ${agentsSrc} ${projectRoot}/AGENTS.md`.quiet();
     }
+    await repairAgentSymlinks(projectRoot);
 
     for (const m of ['app', 'lib', 'cli', 'mono']) {
         if (m === mode) continue;
