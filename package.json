@@ -22,6 +22,7 @@
         "test-pre-check:full": "spur rule run --preset recommended-pre-check --fail-on warning --verbose",
         "test-post-check:full": "spur rule run --preset recommended-post-check --fail-on warning --verbose",
         "check:full": "bun run lint && bun run test:full",
+        "spur-check:full": "bun run lint && bun run test-pre-check:full && bun run test:full && bun run test-post-check:full",
 
         "test:setup": "bun run scripts/ts-base.ts test-setup",
         "typecheck": "tsc --noEmit",

@@ -429,7 +429,7 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
     }
 
     logger.info(`\nDone. ${mode} mode is wired up.`);
-    logger.info('Next: bun install && bun run test');
+    logger.info('Next: proto use && git init && bun install && bun run test');
     return 0;
 }
 
