@@ -9,7 +9,7 @@ afterAll(() => {
     logger.silent = _silentWas;
 });
 
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -745,6 +745,55 @@ describe('runSetupDirect (cli mode)', () => {
         expect(await Bun.file(join(root, 'apps', 'cli', 'index.ts')).exists()).toBe(true);
         // src-cli removed after promotion
         expect(await Bun.file(join(root, 'src-cli')).exists()).toBe(false);
+    });
+
+    it('resolves tooling symlinks, applies scope, repairs agent symlinks, drops tests/scripts', async () => {
+        const root = await tempDir();
+        await scaffoldCli(root);
+
+        // Fixture: src-monorepo/tooling with real file (target of symlink resolution)
+        await mkdir(join(root, 'src-monorepo', 'tooling', 'typescript'), { recursive: true });
+        await writeFile(join(root, 'src-monorepo', 'tooling', 'typescript', 'base.json'), '{"compilerOptions":{}}');
+
+        // Fixture: symlink in src-cli/tooling → src-monorepo/tooling
+        await mkdir(join(root, 'src-cli', 'tooling', 'typescript'), { recursive: true });
+        await symlink(
+            join('..', '..', '..', 'src-monorepo', 'tooling', 'typescript', 'base.json'),
+            join(root, 'src-cli', 'tooling', 'typescript', 'base.json'),
+        );
+
+        // Fixture: file with @SCOPE/ to exercise applyScope → normalizePromotedScopeImports
+        await writeFile(
+            join(root, 'src-cli', 'packages', 'utils', 'scooped.ts'),
+            'import { z } from "@SCOPE/utils";\n',
+        );
+
+        // Fixture: CLAUDE.md / GEMINI.md as dangling symlinks (simulating degit)
+        await symlink('/nonexistent/degit/cache/AGENTS.md', join(root, 'CLAUDE.md'));
+        await symlink('/nonexistent/degit/cache/AGENTS.md', join(root, 'GEMINI.md'));
+
+        // Fixture: tests/scripts symlink (ts-base internal convenience)
+        await mkdir(join(root, 'tests'), { recursive: true });
+        await symlink(join('..', 'scripts', 'tests'), join(root, 'tests', 'scripts'));
+
+        const code = await runSetupDirect('cli', { noDb: false, noConfig: false }, root);
+        expect(code).toBe(0);
+
+        // Tooling symlink resolved to real file content
+        const toolingBase = await Bun.file(join(root, 'tooling', 'typescript', 'base.json')).text();
+        expect(toolingBase).toBe('{"compilerOptions":{}}');
+
+        // @SCOPE/ replaced with @test/ in the scooped file
+        const scoopedContent = await Bun.file(join(root, 'packages', 'utils', 'scooped.ts')).text();
+        expect(scoopedContent).toContain('@test/utils');
+        expect(scoopedContent).not.toContain('@SCOPE/');
+
+        // Agent symlinks repaired to point to AGENTS.md
+        const claudeTarget = await readFile(join(root, 'CLAUDE.md'), 'utf-8');
+        expect(claudeTarget).toContain('AGENTS cli');
+
+        // tests/scripts symlink removed
+        expect(await Bun.file(join(root, 'tests', 'scripts')).exists()).toBe(false);
     });
 });
 

@@ -382,6 +382,8 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
         await $`mv ${agentsSrc} ${projectRoot}/AGENTS.md`.quiet();
     }
     await repairAgentSymlinks(projectRoot);
+    // Drop ts-base-internal tests/scripts symlink (degit-broken, unused in generated projects).
+    await rm(`${projectRoot}/tests/scripts`, { force: true });
 
     // Swap ADR: keep chosen mode's, drop rest.
     for (const m of ['app', 'lib', 'cli', 'mono']) {
@@ -460,6 +462,7 @@ export async function runSetupDirect(mode: Mode, flags: CleanupFlags, projectRoo
         await $`mv ${agentsSrc} ${projectRoot}/AGENTS.md`.quiet();
     }
     await repairAgentSymlinks(projectRoot);
+    await rm(`${projectRoot}/tests/scripts`, { force: true });
 
     for (const m of ['app', 'lib', 'cli', 'mono']) {
         if (m === mode) continue;
