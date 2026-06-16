@@ -402,8 +402,9 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
     // Drop template lockfile for fresh install.
     await rm(`${projectRoot}/bun.lock`, { force: true });
 
-    // Remove template-only scripts and strip their package.json entries.
-    const removableScripts = [
+    // Remove ts-base scaffolding scripts. Only touch files we own;
+    // rmdir only if empty so user-added scripts survive.
+    const baseScripts = [
         'setup.ts',
         '_modes.ts',
         'clean.ts',
@@ -411,11 +412,13 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
         'ensure-scaffold-installs.ts',
         'ts-base.ts',
     ];
-    if (mode !== 'lib') {
-        removableScripts.push('fix-dist-esm-extensions.ts', 'smoke-dist-imports.ts');
-    }
-    for (const f of removableScripts) {
+    const removable =
+        mode !== 'lib' ? [...baseScripts, 'fix-dist-esm-extensions.ts', 'smoke-dist-imports.ts'] : baseScripts;
+    for (const f of removable) {
         await rm(`${projectRoot}/scripts/${f}`, { force: true });
+    }
+    for (const d of ['agent-convergence', 'divergence', 'lib', 'tests']) {
+        await rm(`${projectRoot}/scripts/${d}`, { recursive: true, force: true });
     }
     await $`rmdir ${projectRoot}/scripts`.quiet().nothrow();
     const finalPkg = await readPackageJson(projectRoot);
@@ -431,6 +434,7 @@ export async function runSetup(args: string[], projectRoot: string): Promise<num
     }
 
     logger.info(`\nDone. ${mode} mode is wired up.`);
+    logger.info('Then remove the `setup` script entry from package.json.');
     logger.info('Next: proto use && git init && bun install && bun run test');
     return 0;
 }
@@ -478,7 +482,7 @@ export async function runSetupDirect(mode: Mode, flags: CleanupFlags, projectRoo
 
     await rm(`${projectRoot}/bun.lock`, { force: true });
 
-    const removableScripts = [
+    const baseScripts = [
         'setup.ts',
         '_modes.ts',
         'clean.ts',
@@ -486,11 +490,13 @@ export async function runSetupDirect(mode: Mode, flags: CleanupFlags, projectRoo
         'ensure-scaffold-installs.ts',
         'ts-base.ts',
     ];
-    if (mode !== 'lib') {
-        removableScripts.push('fix-dist-esm-extensions.ts', 'smoke-dist-imports.ts');
-    }
-    for (const f of removableScripts) {
+    const removable =
+        mode !== 'lib' ? [...baseScripts, 'fix-dist-esm-extensions.ts', 'smoke-dist-imports.ts'] : baseScripts;
+    for (const f of removable) {
         await rm(`${projectRoot}/scripts/${f}`, { force: true });
+    }
+    for (const d of ['agent-convergence', 'divergence', 'lib', 'tests']) {
+        await rm(`${projectRoot}/scripts/${d}`, { recursive: true, force: true });
     }
     await $`rmdir ${projectRoot}/scripts`.quiet().nothrow();
     const finalPkg = await readPackageJson(projectRoot);
