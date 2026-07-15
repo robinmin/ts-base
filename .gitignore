@@ -141,3 +141,6 @@ dist
 # Turbo cache
 .turbo
 /.spur/spur.*
+/.spur/context/token-ledger.jsonl
+/.spur/context/.session.json
+/.spur/run/
