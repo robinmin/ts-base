@@ -1,38 +1,15 @@
-import type { Planet } from '@SCOPE/api';
-import { planetContract } from '@SCOPE/api';
+import { findPlanetById, listPlanets, planetContract, storePlanet } from '@SCOPE/api';
 import { implement, ORPCError } from '@orpc/server';
-
-// In-memory store for the demo — swap in a real DB in production.
-const planets: Planet[] = [];
-let idCounter = 0;
-
-function nextId(): number {
-    idCounter += 1;
-    return idCounter;
-}
-
-// Test-only: reset the in-memory store between suites.
-/** Reset the in-memory planet store (for tests only). */
-export function _resetPlanets(): void {
-    planets.length = 0;
-    idCounter = 0;
-}
 
 const os = implement(planetContract);
 
 /** oRPC procedure: list all planets. */
-export const listPlanet = os.list
-    .handler(async ({ input }) => {
-        const start = input.cursor;
-        const end = start + (input.limit ?? 10);
-        return planets.slice(start, end);
-    })
-    .callable();
+export const listPlanet = os.list.handler(async ({ input }) => listPlanets(input.cursor, input.limit ?? 10)).callable();
 
 /** oRPC procedure: find a planet by id. */
 export const findPlanet = os.find
     .handler(async ({ input }) => {
-        const planet = planets.find((p) => p.id === input.id);
+        const planet = findPlanetById(input.id);
         if (!planet) {
             throw new ORPCError('NOT_FOUND', { message: `Planet ${input.id} not found` });
         }
@@ -41,13 +18,7 @@ export const findPlanet = os.find
     .callable();
 
 /** oRPC procedure: create a new planet. */
-export const createPlanet = os.create
-    .handler(async ({ input }) => {
-        const planet: Planet = { id: nextId(), ...input };
-        planets.push(planet);
-        return planet;
-    })
-    .callable();
+export const createPlanet = os.create.handler(async ({ input }) => storePlanet(input)).callable();
 
 /** Aggregated oRPC router for planet procedures. */
 export const router = os.router({

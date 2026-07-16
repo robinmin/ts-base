@@ -1,18 +1,23 @@
+import { resetPlanets } from '@SCOPE/api';
 import { beforeEach, describe, expect, it } from 'bun:test';
 import { app } from '../src/app';
-import { _resetPlanets } from '../src/procedures/planet';
 
 const rpcBody = (input: unknown) => JSON.stringify({ json: input, meta: [] });
 
 describe('server routes', () => {
     beforeEach(() => {
-        _resetPlanets();
+        resetPlanets();
     });
 
     it('GET /health returns ok', async () => {
         const res = await app.request('/health');
         expect(res.status).toBe(200);
         expect(await res.json()).toEqual({ status: 'ok' });
+    });
+
+    it('GET /health includes X-Request-Id header', async () => {
+        const res = await app.request('/health');
+        expect(res.headers.get('X-Request-Id')).toBeString();
     });
 
     it('GET /rpc returns 404 (no matching procedure)', async () => {
