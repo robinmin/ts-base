@@ -4,10 +4,33 @@ import { orpc } from './orpc';
 
 export function App() {
     const [planets, setPlanets] = useState<Planet[]>([]);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        orpc.list({}).then(setPlanets).catch(console.error);
+        const controller = new AbortController();
+        setLoading(true);
+        setError(null);
+
+        orpc.list({}, { signal: controller.signal })
+            .then((data) => {
+                if (!controller.signal.aborted) {
+                    setPlanets(data);
+                    setLoading(false);
+                }
+            })
+            .catch((err: unknown) => {
+                if (!controller.signal.aborted) {
+                    setError(err instanceof Error ? err.message : 'Failed to load planets');
+                    setLoading(false);
+                }
+            });
+
+        return () => controller.abort();
     }, []);
+
+    if (loading) return <main>Loading planets…</main>;
+    if (error) return <main>Error: {error}</main>;
 
     return (
         <main>
