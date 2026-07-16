@@ -12,7 +12,7 @@ priority: P0
 tags: ["wayfinder:prototype", "convergence", "absorb-code", "security"]
 dependencies: []
 created_at: "2026-07-15T22:32:15.122Z"
-updated_at: "2026-07-16T00:11:11.724Z"
+updated_at: "2026-07-16T01:20:53.035Z"
 ---
 
 ## 0022. Design review-only code discovery and human-approved adaptation for convergence
@@ -27,321 +27,390 @@ R2. Propose candidate types, destinations, review fields, approval states, and i
 R3. Preserve source-boundary, sensitive-content, project-specific, and `ts-libs-candidate` protections.
 R4. Produce a small interface prototype or schema-level design, not production implementation.
 ### Acceptance Criteria
-- [x] AC1: R1 — The mismatch between `--type code`, discovery, apply, and `absorb-code.md` is explained with `file:line` citations for each surface.
-- [x] AC2: R2 — Candidate types, destinations, review fields, approval states, and idempotency behavior are proposed as a schema-level design.
-- [x] AC3: R3 — Source-boundary, sensitive-content, project-specific, and `ts-libs-candidate` protections are preserved; the design explicitly states none are weakened.
-- [x] AC4: R4 — An interface prototype (TypeScript signatures + JSON schema) is produced; no production implementation is written.
-- [x] AC5: The design is self-contained and actionable — a follow-up `code` template task can implement it without further design work.
+```gherkin
+Feature: Review-only convergence code discovery
+
+  @docs-only
+  Scenario: AC1 [docs-only]: R1 — The mismatch between `--type code`, discovery, apply, and `absorb-code.md` is explained with `file:line` citations for each surface.
+    Given the current convergence CLI and implementation
+    When the advertised code flow is traced end to end
+    Then each mismatched surface is explained with current file and line evidence
+
+  @docs-only
+  Scenario: AC2 [docs-only]: R2 — Candidate types, destinations, review fields, approval states, and idempotency behavior are proposed as a schema-level design.
+    Given the review-only convergence boundary
+    When the candidate and tracking models are designed
+    Then types, destinations, fields, explicit states, and rescan behavior are fully specified
+
+  @docs-only
+  Scenario: AC3 [docs-only]: R3 — Source-boundary, sensitive-content, project-specific, and `ts-libs-candidate` protections are preserved; the design explicitly states none are weakened.
+    Given the existing convergence safety classifications
+    When code discovery is added to the design
+    Then boundary checks, redaction, classification order, and apply blocking remain enforceable
+
+  @docs-only
+  Scenario: AC4 [docs-only]: R4 — An interface prototype (TypeScript signatures + JSON schema) is produced; no production implementation is written.
+    Given the corrected design
+    When its implementation surface is described
+    Then TypeScript interfaces and a valid tracking JSON Schema are provided without runtime changes
+
+  @docs-only
+  Scenario: AC5 [docs-only]: The design is self-contained and actionable — a follow-up `code` template task can implement it without further design work.
+    Given the interface, state, safety, and CLI decisions
+    When a follow-up implementation task consumes this design
+    Then no unresolved architectural choice remains
+```
 ### Q&A
-**Q: Why not just remove `code` from `TYPE_FILTERS` and the CLI help text?**
-A: Rejected. The convergence audit (task 0021) surfaced 3 `ts-libs-candidate` patterns (`resolveError`, `createId`, `apiSuccessSchema`/`apiErrorSchema`) and 1 reusable `EntityDao` base class. A structured review of code candidates has real value — the operator gets a markdown report with hand-port checklists instead of ad-hoc grepping. Removing the flag throws away this benefit to fix a UX lie.
+**Q: Why keep `code` instead of removing it from the CLI?**
+A: The locked convergence workflow calls for automated discovery and evidence followed by explicit human adaptation. Task 0021 found reusable *seams* (not ready-made library extractions), so a conservative shortlist remains useful. The CLI must describe it as review-only and require bounded source roots; it must not imply code can be applied.
 
-**Q: Why track porting state in a separate JSON file instead of in the review artifact?**
-A: Idempotency. Re-scanning the same source project overwrites the review JSON deterministically. If porting state lived in the review, it would be lost on re-scan. The `code-port-tracking.json` file is keyed by `candidateId` (stable across re-scans if the source is unchanged) and is never overwritten by the scan step.
+**Q: Why is port state separate from the scan review?**
+A: Scan artifacts are immutable evidence for one source snapshot; operator decisions have a different lifecycle. A separate tracking document preserves decisions across re-scans and avoids editing evidence that the scanner may regenerate.
 
-**Q: Why is `extractionTarget` not a classification?**
-A: Classification (`generic`, `mode-specific`, `ts-libs-candidate`, etc.) is a safety/ownership signal that drives apply/block decisions. `extractionTarget` is a recommendation for the human porting step. Conflating them would couple the safety guard to the porting workflow, which is an out-of-band human process.
+**Q: Why keep a stable candidate ID and add `sourceDigest` instead of hashing content into the ID?**
+A: The current ID is path-based (`scripts/agent-convergence/paths.ts:36-40`). Stable identity lets tracking follow the same conceptual candidate, while `sourceDigest` detects content drift. A digest mismatch yields an effective `needs-review` state without orphaning the prior decision.
 
-**Q: Does this design enable bulk code application in the future?**
-A: No. The `discoveryStrategy: 'review-only'` field and the `canApply()` guard make it explicit. A future task that wanted to enable bulk code application would need to (1) add `code` to the `canApply` type allowlist, (2) remove `ts-libs-candidate` from `BLOCKED_CLASSIFICATIONS` or introduce a new classification, and (3) change `destinationFor` for code. Three separate, visible changes — not a flag flip.
+**Q: Why does the review artifact omit source excerpts?**
+A: Classification is heuristic and can miss sensitive or project-specific content. Persisting excerpts would turn a discovery miss into a data leak. Review artifacts carry relative path, digest, classification rationale, and a checklist only; humans open the source explicitly when evaluating a candidate.
+
+**Q: Is reading a review an approval event?**
+A: No. Every state change is explicit in the tracking document. `pending`, `approved`, `ported`, `rejected`, and `deferred` are operator decisions; no state changes merely because a report was rendered or read.
 ### Design
-**Approach:** review-only discovery for `code` kind. Code candidates are discovered, classified, and surfaced in the review artifact with a hand-port checklist, but never enter the apply pipeline. This closes the dead-letter `--type code` gap without opening a bulk-code-application path.
+**Approach:** add a discriminated `review-only` code-candidate lane beside the existing copy-capable lane. Code discovery is opt-in through explicit relative roots, bounded and deterministic, and emits metadata-only evidence. It never creates a `ProposedChange`, never receives a writable destination, and cannot pass the apply type guard.
+
+**Core invariants:**
+
+1. Classification order is sensitive → project-specific → reusable-code → remaining rules; code never bypasses project-specific checks.
+2. Serialized artifacts never contain discovered source content. Sensitive discoveries are represented only by an aggregate redaction count.
+3. `review-only` candidates use `destinationPath: null` and are excluded from `proposedChanges`; the type system makes them ineligible for apply.
+4. Candidate identity stays path-stable; `sourceDigest` detects drift and invalidates the effective approval state.
+5. Scan evidence is immutable. Port decisions live only in a separate tracking document and are always explicit.
+6. `ts-libs-candidate` remains blocked. The lane proposes hand adaptation; it never copies runtime implementation into `ts-base` or `ts-libs`.
 
 **Tradeoffs:**
-- *Chosen:* Review-only — safe, preserves all blocklists, matches the `ts-libs-candidate` extraction model. Cost: operator hand-ports manually.
-- *Rejected:* Remove `code` from CLI — loses the structured review benefit. The convergence audit (0021) proved reusable code exists; surfacing it has value.
-- *Rejected:* Full code apply — violates the `ts-libs-candidate` blocklist contract and the AGENTS.md rule that reusable runtime code goes to `ts-libs`, not `ts-base`.
 
-**Key invariant:** `BLOCKED_CLASSIFICATIONS` still contains `ts-libs-candidate`; `canApply()` still rejects `code`. The new `discoveryStrategy: 'review-only'` field makes this invariant explicit rather than implicit.
+- Chosen: explicit-root, metadata-only review lane. It is safer and more actionable than broad repository crawling, at the cost of requiring the operator to name source roots.
+- Rejected: remove `code`. This would discard the structured evidence lane required by the locked convergence workflow.
+- Rejected: bulk or per-file code apply. It violates the hand-adaptation and `ts-libs-candidate` boundaries.
+- Rejected: raw excerpts in review artifacts. Heuristic classification is not a sufficient confidentiality boundary.
+- Rejected: content-derived candidate IDs. They make every edit look like a new candidate and strand durable decisions.
+
+Result: a follow-up implementation task can add the lane without another architectural decision. The remaining implementation work is mechanical against the interfaces and state rules in Solution.
 ### Plan
-1. [x] Read convergence tooling source (`types.ts`, `discovery.ts`, `classify.ts`, `apply.ts`, `review.ts`, `paths.ts`, `ts-base.ts` CLI router) to map the `--type code` mismatch.
-2. [x] Read `.claude/commands/absorb-code.md` to confirm the post-apply flow assumes code can be applied.
-3. [x] Author `## Design` — approach, tradeoffs, rejected alternatives, key invariant.
-4. [x] Author `## Solution` — R1 (mismatch with file:line evidence), R2 (types/destinations/fields/states/idempotency), R3 (preserved protections), R4 (interface prototype).
-5. [x] Verify all four requirements answered; all five ACs met; no production code implemented (R4 constraint).
-6. [x] Transition lifecycle: todo → wip → testing → done.
+1. [x] Verify the advertised `code` filter against discovery, classification, review, apply, destination, and command surfaces.
+2. [x] Resolve the project-specific-classification ordering defect and sensitive-artifact risk.
+3. [x] Define a discriminated copy/review-only candidate model and apply exclusion.
+4. [x] Define bounded explicit-root discovery and deterministic ordering.
+5. [x] Define stable candidate identity, source-digest drift detection, and explicit port states.
+6. [x] Provide TypeScript interface prototypes and an actual JSON Schema for tracking.
+7. [x] Define the `absorb-code.md` review-only branch and implementation file map.
+8. [x] Verify R1-R4 and AC1-AC5 with current source references and repository gates.
 ### Solution
-#### R1 — Current mismatch between `--type code`, discovery, apply, and `absorb-code.md`
+**R1 — Verified mismatch**
 
-The `code` type is advertised in three places but never wired through the pipeline. The mismatch is a **dead-letter filter**: `--type code` is accepted, consumes a scan, produces zero candidates, and the apply step has no code path that could ever fire.
+`code` is a valid type at the public/type layers but is a dead discovery lane and an intentionally blocked apply lane.
 
-**Evidence (file:line):**
+| Surface | Current evidence | Consequence |
+| ------- | ---------------- | ----------- |
+| CLI filter | `scripts/ts-base.ts:19-28,55-63,131-143` | `--type code` is accepted and advertised. |
+| Candidate type | `scripts/agent-convergence/types.ts:4-8` | `code` exists in `CandidateKind` and filters. |
+| Discovery | `scripts/agent-convergence/discovery.ts:151-162` | Only skills, commands, and configs are called; no code candidate can be emitted. |
+| Classifier | `scripts/agent-convergence/classify.ts:60-67,82-103` | Any hypothetical `type === 'code'` is treated reusable before project-specific detection—a safety-ordering defect the new design must correct. |
+| Apply | `scripts/agent-convergence/apply.ts:7-15,22-50` | `ts-libs-candidate` is blocked and `code` is outside the type allowlist; live reclassification reinforces the block. |
+| Destination | `scripts/agent-convergence/paths.ts:22-34` | The fallback manufactures a markdown destination even though code is not copy-capable. |
+| Review | `scripts/agent-convergence/review.ts:6-36,39-65` | Every candidate currently receives a proposed change; there is no review-only lane. |
+| Post-apply command | `.claude/commands/absorb-code.md:6,20-38` | The command assumes apply wrote files and has no branch for review-only code evidence. |
 
-| Surface | What it advertises | What it does |
-|---|---|---|
-| `scripts/ts-base.ts:23` | `TYPE_FILTERS` set includes `'code'` | Accepts the flag at the CLI parser |
-| `scripts/ts-base.ts:62` | Error message lists `code` as valid | Misleads the operator into thinking it works |
-| `scripts/ts-base.ts:139` | Help text shows `--type <...|code>` | Documents a non-existent feature |
-| `scripts/agent-convergence/types.ts:5` | `CandidateKind = 'skill' \| 'command' \| 'config' \| 'code'` | The `code` kind exists in the type union |
-| `scripts/agent-convergence/discovery.ts:152-162` | `discoverCandidates()` calls `discoverSkills`, `discoverCommands`, `discoverConfigs` | **No `discoverCode()` exists.** `code` is never discovered. |
-| `scripts/agent-convergence/classify.ts:60-67` | `looksLikeReusableCode()` checks `candidate.type === 'code'` → returns `true` | A code candidate, if it ever existed, would be classified `ts-libs-candidate` |
-| `scripts/agent-convergence/classify.ts:35-39` | `BLOCKED_CLASSIFICATIONS` includes `ts-libs-candidate` | Even if discovered, code would be **blocked at apply** |
-| `scripts/agent-convergence/apply.ts:14` | `canApply()` returns `true` only for `skill`, `command`, `config` | `code` is not in the allowlist → `canApply` returns `false` |
-| `scripts/agent-convergence/paths.ts:23-34` | `destinationFor()` has no `code` branch → falls to default `docs/reviews/ts-libs-candidates/<name>.md` | Code would land as a markdown stub, not as runnable source |
-| `.claude/commands/absorb-code.md:6` | "converge apply has just copied files from a source project into `.claude/skills/`, `.claude/commands/`, or other destination paths" | Implies code *can* be applied. It cannot. |
+The apply block is correct. The defect is the dishonest/incomplete discovery and review surface, plus a classifier ordering that would weaken project-specific protection if code discovery were added naïvely.
 
-**Net effect:** `--type code` is a no-op that silently returns an empty candidate list, the review JSON has no code entries, and `absorb-code.md` step 1 (`git status -s`) would show nothing because apply never wrote anything. The operator's trust in the convergence tool is eroded by a flag that looks live but is dead.
+**R2 — Candidate, review, state, and idempotency model**
 
-**The mismatch is intentional at the apply layer (code is blocked by design — see R3) but accidental at the discovery and advertisement layer.** The task is to make the advertisement honest: either remove `code` from the CLI surface entirely, or wire a review-only discovery path that surfaces code candidates for human porting without enabling bulk application. This task chooses the latter — review-only discovery with human-approved hand-porting — because the convergence audit (task 0021) proved reusable code patterns exist in source projects and the operator benefits from a structured review of them.
-
-#### R2 — Proposed candidate types, destinations, review fields, approval states, and idempotency
-
-##### Candidate types
-
-Keep the existing `CandidateKind` union (`skill | command | config | code`) unchanged. Add a new **discovery strategy** dimension that is orthogonal to kind:
+Use a discriminated union rather than optional fields that permit invalid combinations:
 
 ```ts
-// scripts/agent-convergence/types.ts (additive)
 export type DiscoveryStrategy = 'copy' | 'review-only';
+export type ExtractionTarget = 'ts-base' | 'ts-libs' | 'rejected';
+
+interface CandidateBase {
+    id: string;
+    type: CandidateKind;
+    sourcePath: string; // in-memory only; strip from serialized public artifacts if sensitive
+    relativeSourcePath: string;
+    classification: Classification;
+    supportedModes: Mode[];
+    rationale: string[];
+    requiredConfirmation: true;
+}
+
+export interface CopyCandidate extends CandidateBase {
+    type: 'skill' | 'command' | 'config';
+    discoveryStrategy: 'copy';
+    destinationPath: string;
+}
+
+export interface ReviewOnlyCodeCandidate extends CandidateBase {
+    type: 'code';
+    discoveryStrategy: 'review-only';
+    destinationPath: null;
+    sourceDigest: string; // SHA-256 of bytes read during discovery
+    extractionTarget: ExtractionTarget;
+    handPortChecklist: string[];
+}
+
+export type CapabilityCandidate = CopyCandidate | ReviewOnlyCodeCandidate;
 ```
 
-- `copy` (default, existing behavior): skill/command/config candidates are discovered, classified, and **bulk-appliable** after approval because they land in well-known directories (`.claude/skills/`, `.claude/commands/`, `.claude/imported-configs/`) with deterministic destinations.
-- `review-only`: code candidates are discovered, classified, and written to a **review artifact only**. They are never passed to `applyApprovedCandidates()`. The operator hand-ports the reviewed pattern into `ts-libs` or `ts-base` manually.
+Serialized review artifacts contain no `content` and render no source excerpt. Review-only rows contain: stable candidate ID, relative path, digest, classification, extraction target, rationale, supported modes, and hand-port checklist. Sensitive discoveries are omitted from candidate/blocked arrays and contribute only to `redactions.sensitiveCount`; project-specific candidates may appear as blocked metadata but never include content.
 
-The `code` kind is hard-wired to `review-only` in the discovery layer. No flag exposes this; it is invariant.
+`ProposedChange` remains copy-only. `createReview()` filters by `discoveryStrategy === 'copy'` before calling `proposeChange()`. Review-only code candidates appear in a dedicated markdown table, with `Destination: N/A (hand adaptation)`.
 
-##### Destinations
-
-Code candidates do not get a `destinationPath` in the target project. Instead, the review artifact itself is the destination:
-
-| Kind | Strategy | Destination |
-|---|---|---|
-| `skill` | `copy` | `.claude/skills/<name>/SKILL.md` (existing) |
-| `command` | `copy` | `.claude/commands/<name>.md` (existing) |
-| `config` | `copy` | `.claude/imported-configs/<name>.md` (existing) |
-| `code` | `review-only` | `docs/reviews/<review-id>/code-candidates/<relative-source-path>.md` |
-
-The review markdown for code candidates renders the source excerpt, the classification rationale, the `ts-libs-candidate` recommendation, and a **hand-port checklist** — but never writes the raw source to the target tree.
-
-##### Review fields
-
-Extend `CapabilityCandidate` with optional review-only fields (additive, backward-compatible):
+**Explicit discovery scope and bounds**
 
 ```ts
-// scripts/agent-convergence/types.ts (additive)
-export interface CapabilityCandidate {
-    // ...existing fields...
-    /** Present only when discoveryStrategy === 'review-only'. */
-    discoveryStrategy?: DiscoveryStrategy;
-    /** For code candidates: the recommended extraction target. */
-    extractionTarget?: 'ts-libs' | 'ts-base' | 'rejected';
-    /** For code candidates: a human-readable hand-port checklist. */
-    handPortChecklist?: string[];
+export interface CodeDiscoveryOptions {
+    /** Relative to sourceProject; each root must resolve inside it. */
+    roots: string[];
+    maxFileBytes: number; // default 262_144
+    maxCandidates: number; // default 500
+}
+
+export interface ConvergenceScanOptions {
+    // existing fields...
+    code?: CodeDiscoveryOptions;
 }
 ```
 
-The `extractionTarget` field is populated by the classifier (R3) and defaults to `ts-libs` for any candidate that passes `looksLikeReusableCode()`. The `handPortChecklist` is rendered into the review markdown so the operator has a concrete to-do list per candidate.
+- `--type code` requires at least one repeatable `--code-root <relative-path>`; missing roots is an actionable error.
+- `--type all` retains the current capability scan and includes code only when at least one `--code-root` is supplied. This prevents an unexpected repository-wide code crawl.
+- Every root is passed through `resolveInside(sourceProject, root)` and every file through the existing realpath/symlink containment check (`scripts/agent-convergence/discovery.ts:38-43,83-84`).
+- Only supported text extensions and files at or below `maxFileBytes` are read. Tests, generated output, dependencies, declarations, and source maps are excluded.
+- Paths are collected, converted to POSIX form, sorted, then truncated at `maxCandidates`; output is deterministic across scans.
+- Export presence is a shortlist signal, not proof of reusability. The classifier and human review remain authoritative.
 
-##### Approval states
-
-Code candidates do not participate in the `apply --approve <ids>` flow at all. Their "approval" is binary and out-of-band:
-
-| State | Meaning | Transition |
-|---|---|---|
-| `reviewed` | Operator has read the review entry | Automatic when review is read |
-| `ported` | Operator hand-ported the pattern into ts-libs/ts-base | Manual: operator edits the review JSON or marks in a tracking field |
-| `rejected` | Operator decided not to port | Manual |
-| `deferred` | Operator postponed | Manual |
-
-Because these states are tracked **in the review artifact or an out-of-band tracking file** (not in the apply pipeline), there is no risk of accidental bulk application. The `apply` command continues to reject any `code` candidate ID if one is somehow passed to `--approve`.
-
-##### Idempotency
-
-- **Re-scanning the same source project** produces the same candidate IDs (ID is derived from `type + relativeSourcePath`, both stable). Re-running `converge scan --from <same> --type code` overwrites the prior review JSON deterministically.
-- **Hand-port tracking** is idempotent: re-running scan does not reset `ported`/`rejected` states because those live in a separate `code-port-tracking.json` file keyed by candidate ID. If the source changes, the ID changes (different path or content hash suffix), and the old tracking entry is orphaned — which is correct because the source is no longer the same.
-- **Apply idempotency is unaffected**: `code` candidates never enter apply, so the existing "re-classify from live source" guard in `apply.ts:38-50` is not bypassed or extended for code.
-
-#### R3 — Preserved protections
-
-All four existing blocklist and classification guards remain intact and are **strengthened** for code:
-
-| Protection | Current behavior | Change for code discovery |
-|---|---|---|
-| **Source boundary** (`isSymlinkInside`, `resolveInside`) | Validates symlinks resolve inside source; destinations resolve inside target | Unchanged. Code discovery uses the same `resolvesInsideSource` check. |
-| **Sensitive content** (`SENSITIVE_PATH_PATTERNS`, `SENSITIVE_CONTENT_PATTERNS`) | Blocks `.env`, credentials, private keys, API key patterns | Unchanged. Code candidates matching these are classified `sensitive` and **excluded from the review artifact entirely** — they are not even surfaced for review. |
-| **Project-specific** (`PROJECT_SPECIFIC_PATTERNS` + `projectMarkers`) | Blocks org names, cloud accounts, deployment targets, absolute paths | Unchanged. Code with project-specific markers is classified `project-specific` and **excluded from the code review section**. |
-| **`ts-libs-candidate`** (`looksLikeReusableCode` + `BLOCKED_CLASSIFICATIONS`) | Blocks code from apply, recommends extraction to ts-libs | **Preserved as the intended classification for code.** Code candidates that pass sensitive/project-specific checks are classified `ts-libs-candidate`, surfaced in the review with `extractionTarget: 'ts-libs'`, and **remain blocked at apply**. |
-
-The key invariant: **`BLOCKED_CLASSIFICATIONS` still contains `ts-libs-candidate`, and `canApply()` still returns `false` for any candidate not of kind `skill`/`command`/`config`.** Code discovery adds a review surface; it does not open an apply path.
-
-#### R4 — Interface prototype (schema-level, not production implementation)
-
-##### Discovery: new `discoverCode()` function (prototype)
+**Approval and tracking states**
 
 ```ts
-// scripts/agent-convergence/discovery.ts (prototype, not implemented)
-const CODE_ROOTS = ['src', 'src-lib', 'src-app', 'src-cli', 'src-monorepo'];
-const CODE_EXTENSIONS = /\.(?:ts|tsx|js|jsx|mjs|cjs)$/i;
-const CODE_EXCLUDES = [
-    /\.test\.tsx?$/i,        // tests are not extraction targets
-    /\.spec\.tsx?$/i,
-    /\/tests?\//i,
-    /\/node_modules\//i,
-    /\/dist\//i,
-    /\/build\//i,
-];
+export type CodePortState = 'pending' | 'approved' | 'ported' | 'rejected' | 'deferred';
 
-async function discoverCode(options: ConvergenceScanOptions, candidates: RawCandidate[]): Promise<void> {
-    if (!includesType(options.typeFilter, 'code')) {
-        return;
-    }
-    for (const root of CODE_ROOTS) {
-        const codeRoot = join(options.sourceProject, root);
-        if (!(await exists(codeRoot))) continue;
-        for await (const relativePath of new Glob('**/*').scan({ cwd: codeRoot, onlyFiles: true })) {
-            if (!CODE_EXTENSIONS.test(relativePath)) continue;
-            if (CODE_EXCLUDES.some((re) => re.test(relativePath))) continue;
-            const sourcePath = join(codeRoot, relativePath);
-            if (!(await resolvesInsideSource(options.sourceProject, sourcePath))) continue;
-            const content = await safeReadText(sourcePath);
-            // Only surface files with export statements (reusable surface)
-            if (!REUSABLE_CODE_PATTERNS.some((re) => re.test(content))) continue;
-            await addCandidate(candidates, options, 'code', sourcePath, relativePath, content);
-        }
-    }
+export interface CodePortEntry {
+    sourceKey: string;
+    candidateId: string;
+    reviewedSourceDigest: string;
+    state: CodePortState;
+    targetRepository?: 'ts-base' | 'ts-libs';
+    targetPath?: string; // repository-relative, never an absolute local path
+    notes?: string;
+    updatedAt: string;
 }
 ```
 
-Add `await discoverCode(normalizedOptions, candidates);` to `discoverCandidates()` at `discovery.ts:159`.
+No state is automatic. Rendering/reading a review leaves `pending` unchanged. Tracking keys are `(sourceKey, candidateId)`, where `sourceKey` is the package name or an explicit `--source-id`; this prevents collisions between repositories.
 
-##### Classifier: extend `classifyCandidate` for code (prototype)
+`candidateId` remains path-stable using `candidateId()` (`scripts/agent-convergence/paths.ts:36-40`). `sourceDigest` is separate. A re-scan with the same digest preserves the effective state. When the digest differs from `reviewedSourceDigest`, the report computes `needs-review` and does not treat `approved` or `ported` as current; the durable record is retained rather than orphaned.
 
-```ts
-// classifyCandidate() — add code-specific fields (prototype)
-if (candidate.type === 'code') {
-    return {
-        ...baseCandidate,
-        classification: result.classification, // 'ts-libs-candidate' if reusable
-        discoveryStrategy: 'review-only',
-        extractionTarget: result.classification === 'ts-libs-candidate' ? 'ts-libs' : 'rejected',
-        handPortChecklist: buildHandPortChecklist(candidate),
-    };
-}
-```
+The scan never overwrites the tracking document. A separate explicit decision command or manual CLI-gated implementation step owns tracking writes. Review JSON remains immutable evidence for that scan.
 
-##### Review: render code candidates in a separate section (prototype)
+**R3 — Protection ordering and enforcement**
+
+The current classifier checks sensitivity, then reusable code, then project markers (`scripts/agent-convergence/classify.ts:82-103`). That order is unsafe for a new code lane because `looksLikeReusableCode()` returns true for every code candidate (`classify.ts:60-63`). Correct order:
 
 ```ts
-// review.ts renderReview() — add a "Code Candidates (review-only)" section
-const codeCandidates = review.candidates.filter((c) => c.type === 'code');
-if (codeCandidates.length > 0) {
-    lines.push('## Code Candidates (review-only, not auto-applied)');
-    for (const c of codeCandidates) {
-        lines.push(`### ${c.id}`);
-        lines.push(`- Source: \`${c.relativeSourcePath}\``);
-        lines.push(`- Classification: ${c.classification}`);
-        lines.push(`- Extraction target: ${c.extractionTarget}`);
-        lines.push(`- Rationale: ${c.rationale.join('; ')}`);
-        if (c.handPortChecklist?.length) {
-            lines.push('- Hand-port checklist:');
-            for (const item of c.handPortChecklist) lines.push(`  - [ ] ${item}`);
-        }
-    }
-}
+if (matchesSensitive(candidate)) return sensitive();
+if (matchesProjectSpecific(candidate, context)) return projectSpecific();
+if (candidate.type === 'code' && hasReusableSurface(candidate)) return tsLibsCandidate();
+// existing outside-root, mode, generic, and unknown rules
 ```
 
-##### Apply: harden the guard (prototype, one-line)
+| Protection | Corrected design |
+| ---------- | ---------------- |
+| Source boundary | Explicit roots and every discovered file resolve inside `sourceProject`; escaping roots and symlinks are rejected. |
+| Sensitive content | Classification runs first; no sensitive path, ID, or content is serialized—only an aggregate count. Raw content stays in memory for classification. |
+| Project-specific | Static and dynamic source markers run before reusable-code classification. These candidates remain blocked and metadata-only. |
+| `ts-libs-candidate` | Remains in `BLOCKED_CLASSIFICATIONS` (`classify.ts:34-39`), uses `review-only`, and never receives a destination or `ProposedChange`. |
+| Apply defense | `canApply()` first narrows to `CopyCandidate`; review-only code is rejected before classification/mode checks, and live reclassification remains intact. |
+
+No existing protection is weakened; the ordering bug is explicitly part of the follow-up implementation contract.
+
+**R4 — Interface prototype and tracking JSON Schema**
+
+Implementation signatures:
 
 ```ts
-// apply.ts canApply() — make the code exclusion explicit (currently implicit via type allowlist)
-function canApply(candidate: CapabilityCandidate, review: CapabilityReview): boolean {
-    if (candidate.discoveryStrategy === 'review-only') return false; // explicit
-    // ...existing checks...
-}
+export async function discoverCode(
+    options: ConvergenceScanOptions & { code: CodeDiscoveryOptions },
+): Promise<RawCandidate[]>;
+
+export function isCopyCandidate(candidate: CapabilityCandidate): candidate is CopyCandidate;
+
+export function effectiveCodePortState(
+    candidate: ReviewOnlyCodeCandidate,
+    entry: CodePortEntry | undefined,
+): CodePortState | 'needs-review';
+
+export function mergeCodeTracking(
+    candidates: ReviewOnlyCodeCandidate[],
+    tracking: CodePortTracking,
+): CodePortTrackingView; // pure; does not mutate or persist tracking
 ```
 
-This makes the invariant self-documenting: even if a future change adds `code` to the type allowlist, the `review-only` strategy still blocks apply.
-
-##### `absorb-code.md` correction
-
-Update step 1 of `.claude/commands/absorb-code.md` to clarify that code candidates are review-only:
-
-> If the review artifact contains code candidates (type `code`), they were **not** applied by `converge apply`. They are surfaced for human hand-porting to `ts-libs` or `ts-base`. Check the "Code Candidates (review-only)" section of the review markdown for the hand-port checklist. Do not attempt to bulk-apply code.
-
-##### Idempotency tracking file (prototype schema)
+Tracking document JSON Schema (Draft 2020-12):
 
 ```json
-// docs/reviews/<review-id>/code-port-tracking.json
 {
-  "reviewId": "agent-convergence-2026-07-15T...",
-  "entries": [
-    {
-      "candidateId": "code:src-lib:utils:resolve-error.ts",
-      "state": "ported",
-      "portedTo": "~/xprojects/ts-libs/packages/error-resolver/src/index.ts",
-      "portedAt": "2026-07-15T23:00:00Z",
-      "notes": "Adapted resolveError() — dropped Spur-specific onError handler."
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://gobing.ai/schemas/code-port-tracking.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "entries"],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "entries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["sourceKey", "candidateId", "reviewedSourceDigest", "state", "updatedAt"],
+        "properties": {
+          "sourceKey": { "type": "string", "minLength": 1 },
+          "candidateId": { "type": "string", "pattern": "^code:" },
+          "reviewedSourceDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "state": { "enum": ["pending", "approved", "ported", "rejected", "deferred"] },
+          "targetRepository": { "enum": ["ts-base", "ts-libs"] },
+          "targetPath": { "type": "string", "minLength": 1, "not": { "pattern": "^(?:/|~|[A-Za-z]:[\\\\/])" } },
+          "notes": { "type": "string" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "state": { "const": "ported" } }, "required": ["state"] },
+            "then": { "required": ["targetRepository", "targetPath"] }
+          }
+        ]
+      }
     }
-  ]
+  }
 }
 ```
 
-This file is the only mutation target for code approval states. It is keyed by `candidateId` for idempotency. Re-scanning overwrites the review JSON but **never** overwrites this tracking file — the operator's porting decisions persist.
+`absorb-code.md` gains a strategy branch: copy candidates follow the existing post-apply cleanup; review-only code candidates read the metadata table and tracking state, require an explicit decision, and hand-adapt one candidate at a time. It must state that `converge apply` wrote no code and must not use `git status` as evidence that code discovery succeeded (`.claude/commands/absorb-code.md:6,20-23`).
 
-#### Summary of changes (not implemented — this is a design task)
+**Implementation map (not implemented here)**
 
-| File | Change | Layer |
-|---|---|---|
-| `scripts/agent-convergence/discovery.ts` | Add `discoverCode()` + call in `discoverCandidates()` | Discovery |
-| `scripts/agent-convergence/types.ts` | Add `DiscoveryStrategy`, extend `CapabilityCandidate` with optional fields | Types |
-| `scripts/agent-convergence/classify.ts` | Populate `discoveryStrategy`, `extractionTarget`, `handPortChecklist` for code | Classification |
-| `scripts/agent-convergence/review.ts` | Render "Code Candidates (review-only)" section in markdown | Review |
-| `scripts/agent-convergence/apply.ts` | Add explicit `review-only` guard in `canApply()` | Apply (harden) |
-| `scripts/ts-base.ts:62,139` | Keep `code` in CLI surface (now honest) | CLI |
-| `.claude/commands/absorb-code.md` | Correct step 1 to explain code is review-only | Docs |
+| File | Mechanical follow-up |
+| ---- | -------------------- |
+| `scripts/agent-convergence/types.ts` | Add discriminated candidate union, code options, digest, tracking types, review redaction summary. |
+| `scripts/agent-convergence/discovery.ts` | Add explicit-root bounded deterministic `discoverCode()`. |
+| `scripts/agent-convergence/classify.ts` | Move project checks before reusable-code and remove the unconditional `type === 'code'` shortcut. |
+| `scripts/agent-convergence/review.ts` | Exclude review-only candidates from proposed changes; render metadata only; aggregate sensitive redactions. |
+| `scripts/agent-convergence/apply.ts` | Narrow to `CopyCandidate` before any apply path. |
+| `scripts/agent-convergence/paths.ts` | Keep path-stable ID; stop manufacturing a destination for review-only code. |
+| `scripts/ts-base.ts` | Parse repeatable `--code-root`, document `all` semantics, and emit actionable missing-root errors. |
+| `.claude/commands/absorb-code.md` | Add the review-only decision/hand-adaptation branch. |
+| `scripts/tests/agent-convergence/*.test.ts` | Cover containment, bounds, ordering, redaction, classifier precedence, apply rejection, digest staleness, and deterministic scans. |
 
-**No production implementation is produced.** This is the schema-level design and interface prototype required by R4. Implementation is deferred to a follow-up `code` template task.
+No production implementation, workflow, CI, or source-project file is changed by task 0022.
 ### Testing
-This is a `meta` template design task. No production code was implemented, so no automated tests apply.
+Coverage: N/A — documentation/schema design task; no runtime code path changed.
 
-**Verification performed:**
-- Read all convergence module source files to confirm the mismatch evidence is accurate to the current codebase state (2026-07-15, HEAD `87c7a86`).
-- Confirmed `discoverCandidates()` at `discovery.ts:152-162` has no `discoverCode()` call.
-- Confirmed `canApply()` at `apply.ts:7-15` excludes `code` from the type allowlist.
-- Confirmed `BLOCKED_CLASSIFICATIONS` at `classify.ts:35-39` includes `ts-libs-candidate`.
-- Confirmed `destinationFor()` at `paths.ts:23-34` has no `code` branch.
-- Confirmed `.claude/commands/absorb-code.md:6` implies code can be applied.
+**Requirement verification**
 
-**Coverage claim:** N/A — design/schema task, no code to test.
+| Requirement | Result | Evidence |
+| ----------- | ------ | -------- |
+| R1 | MET | Solution R1 maps the live CLI, type, discovery, classifier, apply, destination, review, and command surfaces with current `file:line` evidence; the fresh baseline scan emitted zero code candidates. |
+| R2 | MET | Solution R2 defines a discriminated candidate model, review-only destination semantics, metadata fields, explicit states, bounded roots, and digest-based rescan behavior. |
+| R3 | MET | Solution R3 corrects classifier precedence and specifies containment, redaction, project-specific blocking, `ts-libs-candidate` blocking, and type-level apply exclusion. |
+| R4 | MET | Solution R4 provides TypeScript signatures and a parseable Draft 2020-12 JSON Schema; no runtime implementation file changed. |
+
+**Acceptance-criteria verification**
+
+| Criterion | Result | Evidence type | Evidence |
+| --------- | ------ | ------------- | -------- |
+| AC1 [docs-only] | MET | static-ref + command | Solution R1 cites all eight live surfaces; `converge scan --type code` exited 0 with zero candidates, blocked items, or proposed changes. |
+| AC2 [docs-only] | MET | static-ref | Solution R2 specifies types, destinations, serialized fields, explicit states, and idempotency/drift behavior. |
+| AC3 [docs-only] | MET | static-ref | Solution R3 specifies enforceable classification order, containment, redaction, blocklists, and apply rejection. |
+| AC4 [docs-only] | MET | command + static-ref | Bun parsed the embedded schema and asserted Draft 2020-12/object/entries-array structure; the implementation map remains documentation-only. |
+| AC5 [docs-only] | MET | manual-review | The corrected Design, settled tradeoffs, signatures, invariants, command semantics, and file map leave no unresolved architectural choice for implementation. |
+
+**Fresh checks**
+
+| Check | Result | Evidence |
+| ----- | ------ | -------- |
+| `spur task check 0022 --strict-core --json` | PASS | Exit 0; zero findings. |
+| Live `--type code` baseline | PASS | Exit 0; `.spur/run/0022-code-final.json` contains 0 candidates, 0 blocked items, and 0 proposed changes, proving the advertised dead discovery lane. |
+| Embedded tracking schema parse | PASS | Exit 0; Bun reported valid JSON with Draft 2020-12 object/entries-array structure. |
+| `spur feature check A --json` | PASS | Exit 0; zero findings after tasks 0027 and 0028 charted the feature's synthesis and delivery scenarios. |
+| `bun run lint` | PASS | Exit 0; Biome, root TypeScript, and scaffold TypeScript checks passed. |
+| `bun run test` | PASS | Exit 0; 166 passed, 0 failed, 99.17% line and 99.82% function coverage. |
+| `bun run --cwd src-monorepo build` | PASS | Exit 0; CLI, server, and web workspaces built successfully. |
+
+**Design conformance**
+
+| Claim | Status | Evidence |
+| ----- | ------ | -------- |
+| Review-only code lane | DONE | Discriminated union, null destination, and copy-only proposed changes are specified. |
+| Preserve all protections | DONE | Corrected classifier order, metadata-only redaction, containment, and apply blocking are explicit. |
+| Human hand adaptation | DONE | Tracking states are explicit and `absorb-code.md` branches away from apply. |
+| Schema-level only | DONE | Only task/feature planning documentation and verification artifacts changed. |
+
+**SECUA review**
+
+- Security: MET — artifacts are metadata-only; sensitive discoveries produce only an aggregate redaction count.
+- Efficiency: MET — roots, file size, candidate count, extensions, and deterministic ordering are bounded.
+- Correctness: MET — the design matches path-stable IDs and fixes classifier precedence plus digest staleness.
+- Usability: MET — missing roots are actionable, decisions are explicit, and review-only destinations are unambiguous.
+- Architecture: MET — the type system separates evidence discovery from file application and preserves `ts-libs` ownership.
+
+Review consistency: PASS — the review-owned section now matches the corrected design and reports no open blocker or major finding.
+
+Verdict: PASS.
 ### Review
 **Functional traceability**
 
 | Requirement | Status | Evidence |
 | ----------- | ------ | -------- |
-| R1 | MET | The mismatch table in Solution R1 cites `scripts/ts-base.ts:23,62,139`, `scripts/agent-convergence/types.ts:5`, `discovery.ts:152-162`, `classify.ts:35-39,60-67`, `apply.ts:7-15`, `paths.ts:23-34`, and `.claude/commands/absorb-code.md:6` — eight surfaces with file:line evidence. |
-| R2 | MET | Solution R2 proposes `DiscoveryStrategy` type, review-only destinations, extended `CapabilityCandidate` fields, four approval states (`reviewed`/`ported`/`rejected`/`deferred`), and idempotency via stable candidate IDs + separate tracking JSON. |
-| R3 | MET | Solution R3 documents all four protections (source-boundary, sensitive-content, project-specific, `ts-libs-candidate`) as preserved, with the key invariant that `BLOCKED_CLASSIFICATIONS` still contains `ts-libs-candidate` and `canApply()` still rejects `code`. |
-| R4 | MET | Solution R4 provides TypeScript interface prototypes for `discoverCode()`, classifier extension, review rendering, apply hardening, and a JSON schema for the tracking file. No production code is implemented. |
+| R1 | MET | `docs/tasks/0022_design-review-only-code-discovery-and-human-approved-adaptat.md:109` maps the advertised CLI/type surface through discovery, classification, review, destination, apply, and `absorb-code.md`, with live `file:line` citations. |
+| R2 | MET | `docs/tasks/0022_design-review-only-code-discovery-and-human-approved-adaptat.md:126` defines the discriminated candidate model, null destination, metadata-only review fields, explicit states, stable IDs, source digests, and rescan behavior. |
+| R3 | MET | `docs/tasks/0022_design-review-only-code-discovery-and-human-approved-adaptat.md:213` fixes classification precedence and preserves containment, redaction, project-specific blocking, `ts-libs-candidate` blocking, and apply exclusion. |
+| R4 | MET | `docs/tasks/0022_design-review-only-code-discovery-and-human-approved-adaptat.md:234` provides TypeScript signatures plus a Draft 2020-12 tracking schema; line 311 confirms no production implementation was made. |
 
 Functional Verdict: PASS.
 
 **SECUA findings**
 
-| Severity | Dimension | Evidence | Finding | Resolution |
-| -------- | --------- | -------- | ------- | ---------- |
-| P2 | Architecture | `scripts/agent-convergence/apply.ts:7-15`; proposed `discoveryStrategy` field | The `review-only` guard is belt-and-suspenders; the primary gate remains the type allowlist in `canApply()`. | Accepted: documented in Solution R2. The primary gate is the existing type allowlist; `review-only` makes the invariant explicit. |
-| P3 | Maintainability | proposed `CODE_ROOTS` array | Hardcoded source roots (`src`, `src-lib`, etc.) will miss non-standard layouts. | Accepted for prototype; flagged for implementation task to make configurable via `ConvergenceScanOptions`. |
-| P4 | Docs | `.claude/commands/absorb-code.md:6` | Step 1 correction is described but not applied (design task, not implementation). | Accepted: the follow-up `code` template task must apply the correction. |
+| Severity | Dimension | Evidence | Finding | Resolution | Status |
+| -------- | --------- | -------- | ------- | ---------- | ------ |
+| P2 | Correctness | `scripts/agent-convergence/classify.ts:60-67,82-103`; task Solution R3 | The original design would have allowed reusable-code detection to precede project-specific blocking. | Classify sensitive and project-specific material before reusable code; retain live reclassification at apply. | Resolved in design |
+| P2 | Security | task Design invariants 1-3; Solution R2 | Source excerpts would enlarge the blast radius of a heuristic classification miss. | Serialize metadata only; omit sensitive candidates and expose only an aggregate redaction count. | Resolved in design |
+| P2 | Correctness | `scripts/agent-convergence/paths.ts:36-40`; task Q&A and Solution R2 | Content-derived IDs would contradict the current path-stable identity and orphan durable decisions. | Keep the path-stable ID and use a separate SHA-256 `sourceDigest`; digest drift computes `needs-review`. | Resolved in design |
+| P3 | Usability | task Solution R2 (`Explicit discovery scope and bounds`, `Approval and tracking states`) | Hardcoded roots and implicit review transitions would be incomplete and ambiguous. | Require repeatable `--code-root`; keep all decision states explicit and separate from report rendering. | Resolved in design |
+| P3 | Architecture | task Design and implementation map | A generic candidate with optional fields could permit review-only code to enter apply. | Use a discriminated `CopyCandidate | ReviewOnlyCodeCandidate` union; code has `destinationPath: null` and no `ProposedChange`. | Resolved in design |
 
-No open blocker or major SECUA finding remains. Security is N/A — this task introduces no runtime path, dependency, secret, input boundary, or I/O behavior; it is a schema-level design only.
+No open P1/P2 finding remains. The task adds no runtime dependency, credential surface, external input handler, or executable I/O path.
 
 **Architecture depth**
 
-- Shallow module: no runtime module was added or changed.
-- Tight coupling / wrong seam: the design explicitly preserves the `ts-libs-candidate` blocklist and the `canApply()` type allowlist; no new seam is introduced between convergence and apply.
-- Weak locality: each proposed change is co-located with its file:line evidence in the Solution summary table.
-- Poor test surface: N/A for a design-only artifact; verification was reading the convergence source to confirm evidence accuracy.
+| Signal | Result | Evidence |
+| ------ | ------ | -------- |
+| Shallow module | No candidate | Documentation-only task; no runtime module or pass-through wrapper was introduced. |
+| Tight coupling | No candidate | Discovery evidence and application are separated by the candidate discriminant and explicit human decision state. |
+| Wrong seam | No candidate | Review-only code stays outside `ProposedChange` and apply; reusable implementation remains a `ts-libs-candidate`, not copied into `ts-base`. |
+| Weak locality | No candidate | Candidate, discovery, tracking, safety, command, and implementation responsibilities are mapped to their owning files. |
+| Poor test surface | No candidate | The implementation map names pure state/digest logic and deterministic discovery tests without requiring a broad runtime stack. |
+
+Architectural Verdict: PASS — no blocker, major, minor, or advisory deepening candidate remains in the documentation-only scope.
+
+Review Verdict: PASS.
 ### References
-- Task 0021: `docs/tasks/0021_audit-spur-new-for-reusable-monorepo-engineering-pattern.md` — convergence audit that classified 3 `ts-libs-candidate` code patterns and 1 `EntityDao` base class.
-- Task 0023: `docs/tasks/0023_define-the-bun-only-workspace-orchestration-contract-for-mon.md` — ADR-006 supersession (Bun-native `--filter` replaces Turbo).
-- `scripts/agent-convergence/types.ts` — `CandidateKind`, `Classification`, `CapabilityCandidate` type definitions.
-- `scripts/agent-convergence/discovery.ts:152-162` — `discoverCandidates()` entry point (no `discoverCode` call).
-- `scripts/agent-convergence/classify.ts:35-39,60-67` — `BLOCKED_CLASSIFICATIONS`, `looksLikeReusableCode()`.
-- `scripts/agent-convergence/apply.ts:7-15` — `canApply()` type allowlist.
-- `scripts/agent-convergence/paths.ts:23-34` — `destinationFor()` (no `code` branch).
-- `scripts/ts-base.ts:19-28,55-63,138-139` — CLI `TYPE_FILTERS`, `parseTypeFilter()`, help text advertising `code`.
-- `.claude/commands/absorb-code.md:6` — post-apply command implying code can be applied.
-- `AGENTS.md` — "ts-base vs ts-libs" boundary rule: reusable runtime code goes to `ts-libs`, not `ts-base`.
+- Task 0021: `docs/tasks/0021_audit-spur-new-for-reusable-monorepo-engineering-patterns-wi.md:20` — corrected source audit; reusable seams are adaptation candidates, not automatic `ts-libs` extractions.
+- `scripts/agent-convergence/types.ts:4-77` — current candidate and scan option shapes.
+- `scripts/agent-convergence/discovery.ts:38-43,65-162` — containment checks and current capability-only discovery.
+- `scripts/agent-convergence/classify.ts:34-39,60-103` — blocklist and unsafe reusable-before-project classification order.
+- `scripts/agent-convergence/apply.ts:7-15,22-50` — type allowlist and live reclassification.
+- `scripts/agent-convergence/review.ts:6-65,72-123` — proposed-change generation and serialized review output.
+- `scripts/agent-convergence/paths.ts:22-40` — fallback destination and path-stable candidate ID.
+- `scripts/ts-base.ts:19-28,55-63,82-96,131-143` — public filter, scan route, and help text.
+- `.claude/commands/absorb-code.md:6,20-38` — current post-apply-only assumption.
+- `AGENTS.md` — review-first convergence and `ts-base` versus `ts-libs` ownership boundaries.
 ### History
 - 2026-07-16T00:10:13.977Z todo → wip (system)
 - 2026-07-16T00:11:11.623Z wip → testing (system)
