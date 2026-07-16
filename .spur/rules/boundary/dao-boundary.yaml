@@ -1,103 +1,26 @@
-# DAO / database boundary rules — keep DB access centralized.
-# Adapted from a monorepo layout and re-scoped to ts-base. Scaffold source is
-# included because after setup one scaffold becomes the real src/.
+# DAO / database boundary rules — keep DB access centralized in packages/db,
+# keep raw SQL out of apps and non-DB packages, and forbid non-portable
+# `.sql` text imports.
+#
+# This file previously carried Drizzle-specific rules
+# (`ts-db-only-in-domain`, `drizzle-only-in-domain-schema`,
+# `tables-via-defineTable`, `no-hand-written-ddl-for-drizzle-tables`) inherited
+# from a project that uses `@gobing-ai/ts-db` + Drizzle. ts-base uses Bun-native
+# SQL via `bun`'s `SQL` tagged template, so those rules did not apply and were
+# either silently inert or false-positive against legitimate
+# `database\`CREATE TABLE ...\`` template literals.
+
 rules:
-  - id: ts-db-only-in-domain
-    description: >
-      @gobing-ai/ts-db may only be imported inside a domain layer. Apps and
-      other packages must consume persistence through DAOs, never the raw
-      adapter.
-    severity: error
-    evaluator:
-      type: forbidden-import
-      config:
-        forbidden:
-          - specifier: "@gobing-ai/ts-db"
-          - specifier: "@gobing-ai/ts-db/schema"
-          - specifier: "@gobing-ai/ts-db/bun-sqlite"
-          - specifier: "@gobing-ai/ts-db/d1"
-        scope:
-          include:
-            - "scripts/**/*.ts"
-            - "src-app/src/**/*.ts"
-            - "src-lib/src/**/*.ts"
-            - "src-cli/**/src/**/*.ts"
-            - "src-monorepo/**/src/**/*.ts"
-          exclude:
-            - "**/node_modules/**"
-            - "**/tests/**"
-
-  - id: drizzle-only-in-domain-schema
-    description: >
-      drizzle-orm is an internal detail of the DB facade. It may be imported
-      ONLY in a domain schema layer.
-    severity: error
-    evaluator:
-      type: forbidden-import
-      config:
-        forbidden:
-          - specifier: "drizzle-orm"
-          - specifier: "drizzle-orm/sqlite-core"
-          - specifier: "drizzle-orm/bun-sqlite"
-          - specifier: "drizzle-orm/d1"
-          - specifier: "drizzle-zod"
-        scope:
-          include:
-            - "scripts/**/*.ts"
-            - "src-app/src/**/*.ts"
-            - "src-lib/src/**/*.ts"
-            - "src-cli/**/src/**/*.ts"
-            - "src-monorepo/**/src/**/*.ts"
-          exclude:
-            - "**/node_modules/**"
-            - "**/tests/**"
-
-  - id: tables-via-defineTable
-    description: >
-      Tables must be defined with defineTable(), not bare sqliteTable().
-    severity: error
-    evaluator:
-      type: rg
-      config:
-        pattern: "sqliteTable\\("
-    include:
-      - "scripts/**/*.ts"
-      - "src-app/src/**/*.ts"
-      - "src-lib/src/**/*.ts"
-      - "src-cli/**/src/**/*.ts"
-      - "src-monorepo/**/src/**/*.ts"
-    exclude:
-      - "**/node_modules/**"
-      - "**/tests/**"
-
-  - id: no-hand-written-ddl-for-drizzle-tables
-    description: >
-      Domain tables derive their CREATE TABLE via createTableSql — do not
-      hand-write DDL.
-    severity: error
-    evaluator:
-      type: rg
-      config:
-        pattern: "(?i)(CREATE|ALTER|DROP)\\s+TABLE\\s+(IF\\s+(NOT\\s+)?EXISTS\\s+)?[\"'`]?[A-Za-z_][A-Za-z0-9_]*[\"'`]?\\s*[(;]"
-    include:
-      - "scripts/**/*.ts"
-      - "src-app/src/**/*.ts"
-      - "src-lib/src/**/*.ts"
-      - "src-cli/**/src/**/*.ts"
-      - "src-monorepo/**/src/**/*.ts"
-    exclude:
-      - "**/node_modules/**"
-      - "**/tests/**"
-
   - id: raw-sql-only-in-domain
     description: >
-      Raw SQL string literals (SELECT/INSERT/UPDATE/DELETE) must stay inside
-      the DAO/migration layer. Db packages are the intended DAO home.
+      Raw SQL string literals (SELECT/INSERT/UPDATE/DELETE/CREATE TABLE) must
+      stay inside `packages/db`. Apps and other packages query through store
+      functions exported by `@SCOPE/api`, never inline SQL.
     severity: error
     evaluator:
       type: rg
       config:
-        pattern: "(SELECT |INSERT INTO|UPDATE |DELETE FROM)"
+        pattern: "(SELECT |INSERT INTO|UPDATE |DELETE FROM|CREATE TABLE)"
     include:
       - "scripts/**/*.ts"
       - "src-app/src/**/*.ts"
@@ -111,8 +34,10 @@ rules:
 
   - id: no-sql-text-imports
     description: >
-      .sql text-imports are non-portable through build/publish and are
-      forbidden.
+      `.sql` text imports (`import ... from './x.sql' with { type: 'text' }`)
+      are non-portable through build/publish and are forbidden. Inline SQL in
+      `.ts` via the `bun` `SQL` tagged template, or call `migrateDatabase`
+      from `@SCOPE/db`.
     severity: error
     evaluator:
       type: rg
