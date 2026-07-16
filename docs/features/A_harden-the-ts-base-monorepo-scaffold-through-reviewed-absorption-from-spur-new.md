@@ -6,7 +6,7 @@ status: backlog
 priority: P0
 tags: []
 created_at: "2026-07-15T22:30:18.948Z"
-updated_at: "2026-07-15T23:52:39.203Z"
+updated_at: "2026-07-16T00:55:44.414Z"
 ---
 
 # A: Harden the ts-base monorepo scaffold through reviewed absorption from spur-new
@@ -77,6 +77,36 @@ Feature: Reviewed monorepo scaffold absorption
     Given a source pattern already exists in the target
     When its disposition is evaluated
     Then the audit records it as already adopted and proposes no duplicate work
+
+  @docs-only
+  Scenario: AC1 [docs-only]: R1 — The mismatch between `--type code`, discovery, apply, and `absorb-code.md` is explained with `file:line` citations for each surface.
+    Given the current convergence CLI and implementation
+    When the advertised code flow is traced end to end
+    Then each mismatched surface is explained with current file and line evidence
+
+  @docs-only
+  Scenario: AC2 [docs-only]: R2 — Candidate types, destinations, review fields, approval states, and idempotency behavior are proposed as a schema-level design.
+    Given the review-only convergence boundary
+    When the candidate and tracking models are designed
+    Then types, destinations, fields, explicit states, and rescan behavior are fully specified
+
+  @docs-only
+  Scenario: AC3 [docs-only]: R3 — Source-boundary, sensitive-content, project-specific, and `ts-libs-candidate` protections are preserved; the design explicitly states none are weakened.
+    Given the existing convergence safety classifications
+    When code discovery is added to the design
+    Then boundary checks, redaction, classification order, and apply blocking remain enforceable
+
+  @docs-only
+  Scenario: AC4 [docs-only]: R4 — An interface prototype (TypeScript signatures + JSON schema) is produced; no production implementation is written.
+    Given the corrected design
+    When its implementation surface is described
+    Then TypeScript interfaces and a valid tracking JSON Schema are provided without runtime changes
+
+  @docs-only
+  Scenario: AC5 [docs-only]: The design is self-contained and actionable — a follow-up `code` template task can implement it without further design work.
+    Given the interface, state, safety, and CLI decisions
+    When a follow-up implementation task consumes this design
+    Then no unresolved architectural choice remains
 ```
 ## Tasks
 
@@ -85,11 +115,13 @@ Feature: Reviewed monorepo scaffold absorption
 | --- | ---- | ------ |
 | 0020 | Audit the ts-base monorepo scaffold against its mode contract and generated behavior | Done |
 | 0021 | Audit spur-new for reusable monorepo engineering patterns within the locked boundary | Done |
-| 0022 | Design review-only code discovery and human-approved adaptation for convergence | todo |
+| 0022 | Design review-only code discovery and human-approved adaptation for convergence | done |
 | 0023 | Define the Bun-only workspace orchestration contract for monorepo mode | done |
-| 0024 | Establish the evidence baseline for selective dependency modernization | todo |
-| 0025 | Define the generated-monorepo verification matrix for absorbed changes | todo |
-| 0026 | Review the representative full-stack seams for minimal production-grade patterns | todo |
+| 0024 | Establish the evidence baseline for selective dependency modernization | done |
+| 0025 | Define the generated-monorepo verification matrix for absorbed changes | done |
+| 0026 | Review the representative full-stack seams for minimal production-grade patterns | done |
+| 0027 | Synthesize the approved monorepo absorption route from completed research | todo |
+| 0028 | Implement the approved monorepo hardening route and validate a fresh generated project | todo |
 <!-- END AUTO-GENERATED -->
 
 ## Notes
