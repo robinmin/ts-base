@@ -10,3 +10,5 @@ export {
     PlanetSchema,
     planetContract,
 } from './contracts/planet';
+
+export { findPlanetById, listPlanets, resetPlanets, storePlanet } from './stores/planet';
