@@ -4,7 +4,7 @@ Guidance for AI coding agents working in this repository. `CLAUDE.md` and `GEMIN
 
 ## Project
 
-Bun + TypeScript + Biome monorepo (Turborepo + Bun-workspaces). Layout:
+Bun + TypeScript + Biome monorepo (Bun workspaces). Layout:
 
 ```
 apps/
@@ -18,14 +18,13 @@ packages/
   utils/        # shared utilities + zod re-export
 tooling/
   typescript/   # shared tsconfig presets (base/server/react)
-turbo.json      # Turborepo task graph
 ```
 
 Workspaces reference each other by the project scope (`@<scope>/*`), set during `bun run setup` from the root `package.json` name.
 
 - **Runtime / package manager / test runner:** Bun `1.3.14`. Prefer `bun:*` APIs over `node:*` unless Bun lacks the API.
 - **Lint + format:** Biome `2.4.16`. No ESLint, no Prettier.
-- **Build orchestration:** Turborepo `^2.9`.
+- **Build orchestration:** dependency-aware Bun `--filter` workspace commands.
 - **Tool versions:** pinned in `.prototools` via [proto](https://moonrepo.dev/proto). Run `proto use` to install.
 - **Git hooks:** Lefthook. **Conventional commits:** cocogitto (`cog`).
 
@@ -81,12 +80,12 @@ touches a command/config/schema keeps `04_DESIGN.md` in sync in the **same commi
 ## Commands
 
 ```bash
-bun run lint       # biome check + turbo run typecheck  (the gate)
+bun run lint       # biome check + Bun workspace typecheck  (the gate)
 bun run format     # biome check --write                (autofix)
-bun run autofix    # format then turbo typecheck
-bun run test       # turbo run test (all workspaces)
-bun run build      # turbo run build (server bundle, web Vite build, cli bundle)
-bun run dev        # turbo run dev (parallel: server + web + cli)
+bun run autofix    # format then workspace typecheck
+bun run test       # test all workspaces
+bun run build      # build server, web, and cli workspaces
+bun run dev        # run available app dev scripts
 ```
 
 Default dev ports: server `3000`, web `5173`. The web client reads `VITE_API_URL` (falls back to `http://localhost:3000/rpc`); the CLI reads `API_URL`. See each app's `.env.example`.
@@ -95,7 +94,7 @@ CLI binary: `apps/cli` exposes `bin: { cli: "./src/index.ts" }` — the `.ts` en
 
 ## Verification gate (all must pass before "done")
 
-1. `bun run lint` clean — Biome and `turbo run typecheck`.
+1. `bun run lint` clean — Biome and Bun workspace typecheck.
 2. `bun run test` passes; no test skipped, `.skip`'d, or commented out to go green.
 3. `bun run build` succeeds across all workspaces with a `build` script.
 4. `git status` shows only intentional changes.
@@ -118,7 +117,7 @@ If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--fo
 
 ## Architecture decision record (binding)
 
-`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the monorepo's shape — the Turborepo + Bun-workspaces layout, the `apps/{server,web,cli}` ⁄ `packages/{api,config,db,utils}` split, oRPC contracts in `packages/api` as the single source of truth for end-to-end type safety, Hono on `Bun.serve` for the server, and the `@<scope>/*` workspace-alias boundary. Treat it as a constraint, not a suggestion:
+`docs/00_ADR.md` is the **authoritative architecture decision record** for this project. It captures the decisions that define the monorepo's shape — the Bun-workspaces layout, the `apps/{server,web,cli}` ⁄ `packages/{api,config,db,utils}` split, oRPC contracts in `packages/api` as the single source of truth for end-to-end type safety, Hono on `Bun.serve` for the server, and the `@<scope>/*` workspace-alias boundary. Treat it as a constraint, not a suggestion:
 
 - Read it before any non-trivial change to the workspace graph, the oRPC contract layer, the server transport, or cross-package boundaries.
 - Changes that contradict a recorded decision require updating the ADR first (add a new dated entry that supersedes the old one) — never silently diverge.

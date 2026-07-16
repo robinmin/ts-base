@@ -6,13 +6,13 @@
 
 ## Context
 
-A Bun + TypeScript + Biome **full-stack monorepo** (Turborepo + Bun-workspaces): a server, a web client, and a CLI client sharing typed API contracts. The design optimizes for end-to-end type safety without code generation, clear app/package boundaries, and one coherent build/test graph.
+A Bun + TypeScript + Biome **full-stack monorepo** (Bun workspaces): a server, a web client, and a CLI client sharing typed API contracts. The design optimizes for end-to-end type safety without code generation, clear app/package boundaries, and one coherent build/test graph.
 
 ---
 
-## ADR-001 — Turborepo + Bun-workspaces layout
+## ADR-001 — Turborepo + Bun-workspaces layout (orchestration superseded by ADR-006)
 
-**Decision.** Apps and packages are separated and orchestrated by Turborepo:
+**Original decision.** Apps and packages are separated and orchestrated by Turborepo:
 
 ```
 apps/
@@ -29,9 +29,17 @@ tooling/typescript/  # shared tsconfig presets (base/server/react)
 
 Workspaces reference each other by scope `@<scope>/*`, rewritten in place at `bun run setup` from the root `package.json` name.
 
-**Rationale.** `apps/*` are deployables, `packages/*` are shared libraries — the split keeps dependencies flowing one direction (apps depend on packages, never the reverse). Turbo caches and orders `build`/`test`/`typecheck` across the graph via `dependsOn: ["^…"]`. The root pins `packageManager: bun@1.3.14` for Turbo resolution.
+**Original rationale.** `apps/*` are deployables, `packages/*` are shared libraries — the split keeps dependencies flowing one direction (apps depend on packages, never the reverse). Turbo originally cached and ordered workspace commands.
 
 **Consequences.** New shared code is a `packages/*` workspace; new deployables are `apps/*`. Cross-cutting tsconfig lives once in `tooling/typescript` and is referenced, not copied.
+
+## ADR-006 — Bun-native workspace orchestration supersedes Turbo
+
+**Decision (2026-07-15).** Preserve the ADR-001 workspace topology, but remove Turbo and orchestrate workspace scripts with Bun's dependency-aware `--filter`. Root `dev` and `build` use `--if-present` because those scripts are intentionally optional across packages.
+
+**Rationale.** The scaffold does not need a second task runner or remote cache. Bun already provides the required workspace selection and dependency ordering, which reduces generated-project dependencies and configuration.
+
+**Consequences.** Generated monorepos contain no active Turbo dependency, configuration, cache cleanup, or operational guidance; this ADR retains the superseded decision as history. The root continues to pin `packageManager: bun@1.3.14`; workspace scripts remain the source of truth for each package's build and test behavior.
 
 ---
 

@@ -13,8 +13,8 @@ The repository still ships **four modes** side by side; `bun run setup` keeps on
 
 - **Application** (`src-app/`) — a `Bun.serve` HTTP server. Flat single-package layout → `src/`.
 - **Library** (`src-lib/`) — a publishable package (`internal.ts` runtime-agnostic core, `index.ts` Node entry, `browser.ts` browser entry), built with `tsc` plus the Bun dist ESM extension fixer. Flat single-package layout → `src/`.
-- **CLI** (`src-cli/`) — a Turborepo + Bun-workspaces layout with a Commander-based CLI in `apps/cli` and shared `packages/{config,utils}`. Promoted to the repo root on setup.
-- **Monorepo** (`src-monorepo/`) — a Turborepo + Bun-workspaces layout promoted to the repo root: `apps/{server,web,cli}` and `packages/{api,config,db,utils}`. Workspaces reference each other by the project scope (`@<scope>/*`), derived from the root `package.json` name; the `@SCOPE/` placeholder in every `package.json` and `.ts`/`.tsx` source file is rewritten in place.
+- **CLI** (`src-cli/`) — a Bun-workspaces layout with a Commander-based CLI in `apps/cli` and shared `packages/{config,utils}`. Promoted to the repo root on setup.
+- **Monorepo** (`src-monorepo/`) — a Bun-workspaces layout promoted to the repo root: `apps/{server,web,cli}` and `packages/{api,config,db,utils}`. Workspaces reference each other by the project scope (`@<scope>/*`), derived from the root `package.json` name; the `@SCOPE/` placeholder in every `package.json` and `.ts`/`.tsx` source file is rewritten in place.
 
 After setup the chosen layout is promoted, the other scaffolds are deleted, and mode-specific scripts/deps/CI are wired into `package.json` and `.github/workflows/`. Once setup has run, treat the repo as a normal single-mode project.
 
@@ -94,7 +94,7 @@ bun run test       # bun test with coverage
 bun run spur-check # lint + Spur pre-check + test + Spur post-check
 ```
 
-Mode-specific: app has `start`/`dev`; lib has `build` (`tsc` + Bun dist extension fixer) and `smoke:dist`; cli and monorepo proxy `dev`/`build`/`test`/`typecheck` through `turbo run …` across all workspaces (root pins `packageManager` so Turbo can resolve them).
+Mode-specific: app has `start`/`dev`; lib has `build` (`tsc` + Bun dist extension fixer) and `smoke:dist`; cli and monorepo proxy `dev`/`build`/`test`/`typecheck` through dependency-aware Bun `--filter` commands across all workspaces.
 
 ## Verification gate (all must pass before "done")
 
@@ -103,7 +103,7 @@ Mode-specific: app has `start`/`dev`; lib has `build` (`tsc` + Bun dist extensio
 3. For changes touching architecture, template policy, or convergence rules, run `bun run spur-check` when Spur is available.
 4. `git status` shows only intentional changes.
 5. Lib mode only: `bun run build` and `bun run smoke:dist` succeed.
-6. CLI / Monorepo mode only: `bun run build` (turbo) succeeds across all workspaces.
+6. CLI / Monorepo mode only: `bun run build` succeeds through Bun workspace filters.
 
 If a check fails, fix the root cause. **Never** bypass with `--no-verify`, `--force`, or new `biome-ignore` suppressions added solely to silence the gate.
 

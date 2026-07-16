@@ -48,7 +48,7 @@ Before setup the template ships four modes side by side:
 | `app`  | `src-app/`         | Flat Bun HTTP server in `src/`                                      |
 | `lib`  | `src-lib/`         | Publishable TypeScript library in `src/`                            |
 | `cli`  | `src-cli/`         | Bun workspace with `apps/cli` and shared `packages/{config,utils}`  |
-| `mono` | `src-monorepo/`    | Turborepo + Bun workspaces with `apps/{server,web,cli}` and shared `packages/{api,config,db,utils}` |
+| `mono` | `src-monorepo/`    | Bun workspaces with `apps/{server,web,cli}` and shared `packages/{api,config,db,utils}` |
 
 Mode-specific contracts live in `AGENTS-<mode>.md` and `docs/00_ADR-<mode>.md` before setup. Setup swaps the selected files into `AGENTS.md` and `docs/00_ADR.md`.
 
@@ -83,7 +83,7 @@ The `package.json` scripts are shortcuts to these subcommands:
 
 **`setup`** — Templates a new project from the selected mode scaffold. Accepts `--mode=<mode>` (interactive prompt if omitted), `--no-db` (skip database deps), `--no-config` (skip config + use minimal app entry).
 
-**`clean`** — Removes generated caches from template scaffolds (node_modules, dist, .turbo, .coverage).
+**`clean`** — Removes generated caches from template scaffolds (node_modules, dist, .coverage).
 
 **`test-setup`** — End-to-end smoke test: copies the repo to a temp directory, runs setup + install + check for each specified mode. Defaults to all modes.
 

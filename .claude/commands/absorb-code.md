@@ -3,7 +3,7 @@ description: Post-convergence: review, cleanup, and integrate absorbed capabilit
 argument-hint: "--from [source-project] --description [what-was-absorbed] [review-artifact]"
 ---
 
-You are finishing a convergence absorption cycle. `converge apply` has just copied files from a source project into `.claude/skills/`, `.claude/commands/`, or other destination paths under this project.
+You are finishing a convergence cycle. Copy candidates may have been written by `converge apply`; review-only code candidates are metadata evidence and are never copied by apply.
 
 ARGUMENTS supplies the source project path (`--from`), a description of what was absorbed and any special instructions (`--description`), and optionally the review artifact path. Read `$ARGUMENTS` to extract these values.
 
@@ -19,8 +19,10 @@ If any required argument is missing, ask for it before proceeding.
 
 ## 1. Review what was absorbed
 
-- Run `git status -s` to see every file the apply step created or modified.
 - If a review artifact was provided or found, read it to understand the classification decisions.
+- Branch by `discoveryStrategy`:
+  - `copy`: run `git status -s` to inspect files created or modified by apply.
+  - `review-only`: do not use `git status` as evidence of discovery. Read the metadata table, source digest, extraction target, and tracking state. `converge apply` wrote no code.
 - For each new or changed file, check whether it contains project-specific references that should have been classified as `project-specific` or `sensitive`:
   - Absolute paths pointing to the source project's directory
   - Organization names, cloud account IDs, or deployment targets
@@ -36,6 +38,8 @@ For every file flagged above:
 - If a file is too entangled with the source project to generalize, classify it as blocked and remove it. Do NOT leave half-cleaned files in the tree.
 
 Apply any additional instructions from `--description`.
+
+For each review-only code candidate, require one explicit tracking decision: `approved`, `ported`, `rejected`, or `deferred`. Keep the decision in the separate code-port tracking document; never edit the immutable scan artifact. If an approved candidate is adapted, open that source file explicitly, hand-port one surgical seam, and run the owning repository gates. A changed `sourceDigest` means `needs-review` regardless of its prior state.
 
 ## 3. Verify capability registration
 
