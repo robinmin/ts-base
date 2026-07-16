@@ -44,7 +44,7 @@ rules:
     evaluator:
       type: rg
       config:
-        pattern: "from ['\"](jest|mocha|@jest)"
+        pattern: 'from [''"](jest|mocha|@jest)'
     include:
       - "scripts/**/*.test.ts"
       - "src-app/**/*.test.ts"

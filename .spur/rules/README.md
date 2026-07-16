@@ -8,7 +8,7 @@ install or to ts-libs.
 ## Categories
 
 | Category | Dir | Purpose |
-|---|---|---|
+| --- | --- | --- |
 | `typescript` | `typescript/` | TypeScript tooling, output boundaries, biome-suppression ban, no `debugger` |
 | `strict` | `strict/` | Opt-in strict rules (runtime boundaries, HTTP boundaries, structural) |
 | `boundary` | `boundary/` | DB/DAO boundary enforcement |
@@ -19,7 +19,7 @@ install or to ts-libs.
 ## Presets
 
 | Preset | When | Extends |
-|---|---|---|
+| --- | --- | --- |
 | `recommended-pre-check` | Before tests | `typescript`, `structure`, `boundary`, `surface` |
 | `recommended-post-check` | After tests | `quality` |
 | `strict-check` | Opt-in | `strict` |

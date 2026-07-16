@@ -1,12 +1,11 @@
-# [STRICT — opt-in] HTTP-client boundaries. Adapted from ts-libs, re-scoped to
-# ts-base's multi-scaffold layout. NOT in recommended-pre-check.
-# Opt in via: spur rule run --preset strict-check  (or --rule <id>).
+# [STRICT — opt-in] HTTP-client boundaries. Absorbed from
+# ts-libs/.spur/rules/typescript/external-api-boundaries.yaml. NOT in
+# recommended-pre-check: Spur has no central api-client seam yet, and the
+# server's Hono/Workers entrypoint legitimately exposes a `fetch` handler.
+# Opt in via: spur rule run --preset strict  (or --rule <id>).
 include:
-  - "scripts/**/*.ts"
-  - "src-app/src/**/*.ts"
-  - "src-lib/src/**/*.ts"
-  - "src-cli/**/src/**/*.ts"
-  - "src-monorepo/**/src/**/*.ts"
+  - "apps/**/src/**/*.ts"
+  - "packages/**/src/**/*.ts"
 exclude:
   - "**/tests/**"
   - "**/*.test.ts"
@@ -15,21 +14,44 @@ exclude:
 
 rules:
   - id: no-direct-fetch
-    description: "Prefer a centralized HTTP client over ad-hoc fetch(...)."
+    description: "Prefer a centralized HTTP client over ad-hoc fetch(...). The server's Hono/Workers fetch entrypoint is exempt."
     severity: warning
     evaluator:
       type: rg
       config:
         pattern: "(^|[^.[:alnum:]_])fetch\\("
+    exclude:
+      # Hono/Cloudflare Workers entrypoint — `fetch` is the platform contract.
+      - "apps/server/src/worker.ts"
+      - "apps/server/src/app.ts"
 
   - id: no-globalthis-fetch
     description: "Avoid globalThis.fetch(...); route HTTP through a client seam when one exists."
-    severity: warning
+    severity: error
     evaluator:
       type: rg
       config:
         pattern: "globalThis\\.fetch\\("
+    include:
+      - "apps/**/src/**/*.ts"
+      - "packages/**/src/**/*.ts"
+      - "apps/**/tests/**/*.ts"
+      - "apps/**/tests/**/*.tsx"
+      - "packages/**/tests/**/*.ts"
+      - "packages/**/tests/**/*.tsx"
 
+  - id: no-globalthis-fetch-mutation
+    description: "Avoid mutating globalThis.fetch in tests; use the injectable fetch seam (rpc-client.ts setFetchForTesting / resetFetchForTesting)."
+    severity: error
+    evaluator:
+      type: rg
+      config:
+        pattern: "globalThis\\.fetch\\s*="
+    include:
+      - "apps/**/tests/**/*.ts"
+      - "apps/**/tests/**/*.tsx"
+      - "packages/**/tests/**/*.ts"
+      - "packages/**/tests/**/*.tsx"
   - id: no-xml-http-request
     description: "Do not use XMLHttpRequest in a Bun/Node codebase."
     severity: error
@@ -37,12 +59,12 @@ rules:
       type: rg
       config:
         pattern: "new\\s+XMLHttpRequest\\("
+    # Correctness rule (not a seam rule): XHR is never valid under Bun, so it
+    # applies to scripts/ tooling too — override the file-level apps+packages scope.
     include:
+      - "apps/**/src/**/*.ts"
+      - "packages/**/src/**/*.ts"
       - "scripts/**/*.ts"
-      - "src-app/src/**/*.ts"
-      - "src-lib/src/**/*.ts"
-      - "src-cli/**/src/**/*.ts"
-      - "src-monorepo/**/src/**/*.ts"
 
   - id: no-third-party-http-clients
     description: "Use the platform fetch / a project client instead of ad-hoc HTTP client libraries (axios/got/ky/ofetch/undici)."
@@ -58,11 +80,9 @@ rules:
           - specifier: "undici"
         scope:
           include:
+            - "apps/**/*.ts"
+            - "packages/**/*.ts"
             - "scripts/**/*.ts"
-            - "src-app/**/*.ts"
-            - "src-lib/**/*.ts"
-            - "src-cli/**/*.ts"
-            - "src-monorepo/**/*.ts"
           exclude:
             - "**/tests/**"
             - "**/*.test.ts"
