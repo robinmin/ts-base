@@ -1,57 +1,39 @@
-import { describe, expect, it, mock } from 'bun:test';
-import type { User } from '../src/index';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import type { SQL } from 'bun';
+import { closeDb, createMigratedDatabase, createUser, db, findUserByEmail, type User } from '../src/index';
 
-interface MockDb {
-    (...args: unknown[]): unknown;
-    setRows: (r: unknown[]) => void;
-}
+let database: SQL;
 
-function createMockDb() {
-    let rows: unknown[] = [];
-    const fn = ((...args: unknown[]) => {
-        if (Array.isArray(args[0]) && 'raw' in args[0]) {
-            return Promise.resolve(rows);
-        }
-        return args[0];
-    }) as MockDb;
-    fn.setRows = (r: unknown[]) => {
-        rows = r;
-    };
-    return fn;
-}
+beforeEach(async () => {
+    database = await createMigratedDatabase();
+});
 
-const mockDb = createMockDb();
-
-mock.module('../src/connection.js', () => ({
-    db: () => mockDb,
-}));
-
-const { createUser, db, findUserByEmail } = await import('../src/index');
+afterEach(async () => {
+    await database.close();
+    await closeDb();
+});
 
 describe('db', () => {
-    it('memoizes the SQL client', () => {
+    it('memoizes the default SQL client', () => {
         expect(db()).toBe(db());
     });
 
     it('findUserByEmail returns the matching row', async () => {
-        const user: User = { id: 42, email: 'a@b.com' };
-        mockDb.setRows([user]);
-        await expect(findUserByEmail('a@b.com')).resolves.toEqual(user);
+        const created = await createUser('a@b.com', database);
+        const user: User = { id: created.id, email: 'a@b.com' };
+        await expect(findUserByEmail('a@b.com', database)).resolves.toEqual(user);
     });
 
-    it('findUserByEmail returns undefined when no match', async () => {
-        mockDb.setRows([]);
-        await expect(findUserByEmail('missing@b.com')).resolves.toBeUndefined();
+    it('findUserByEmail returns undefined when no row matches', async () => {
+        await expect(findUserByEmail('missing@b.com', database)).resolves.toBeUndefined();
     });
 
     it('createUser returns the inserted user', async () => {
-        const user: User = { id: 7, email: 'new@b.com' };
-        mockDb.setRows([user]);
-        await expect(createUser('new@b.com')).resolves.toEqual(user);
+        await expect(createUser('new@b.com', database)).resolves.toMatchObject({ id: 1, email: 'new@b.com' });
     });
 
-    it('createUser throws when insert returns no row', async () => {
-        mockDb.setRows([]);
-        await expect(createUser('bad@b.com')).rejects.toThrow('insert returned no row');
+    it('preserves the unique-email constraint', async () => {
+        await createUser('same@b.com', database);
+        await expect(createUser('same@b.com', database)).rejects.toThrow();
     });
 });
