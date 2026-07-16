@@ -1,4 +1,5 @@
 {
+    "$schema": "https://biomejs.dev/schemas/2.4.16/schema.json",
     "vcs": {
         "enabled": true,
         "clientKind": "git",
@@ -6,7 +7,7 @@
     },
     "files": {
         "ignoreUnknown": true,
-        "includes": ["**", "!**/.claude", "!**/dist", "!**/.turbo", "!**/.coverage", "!**/node_modules", "!**/vendors"]
+        "includes": ["**", "!**/.claude", "!**/dist", "!**/.coverage", "!**/node_modules", "!**/vendors"]
     },
     "formatter": {
         "enabled": true,

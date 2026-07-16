@@ -9,8 +9,8 @@
     ],
     "scripts": {
         "prepare": "lefthook install",
-        "dev": "bun run --filter './apps/*' --filter './packages/*' dev",
-        "build": "bun run --filter './apps/*' --filter './packages/*' build",
+        "dev": "bun run --if-present --filter './apps/*' --filter './packages/*' dev",
+        "build": "bun run --if-present --filter './apps/*' --filter './packages/*' build",
         "test": "bun run --filter './apps/*' --filter './packages/*' test",
         "test:full": "bun run --filter './apps/*' --filter './packages/*' test:full",
         "test-pre-check": "spur rule run --preset recommended-pre-check --fail-on warning --verbose",
@@ -27,6 +27,7 @@
         "check:full": "bun run lint && bun run test:full"
     },
     "devDependencies": {
-        "@types/bun": "1.3.14"
+        "@types/bun": "1.3.14",
+        "typescript": "~5.9.0"
     }
 }
