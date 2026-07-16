@@ -3,13 +3,45 @@
 // Vite's build-time `import.meta.env.VITE_*`.
 
 import type { planetContract } from '@SCOPE/api';
+import { DEFAULT_REQUEST_TIMEOUT_MS, fetchWithTimeout, resolveApiUrl } from '@SCOPE/utils';
 import { createORPCClient } from '@orpc/client';
 import { RPCLink } from '@orpc/client/fetch';
 import type { ContractRouterClient } from '@orpc/contract';
 
-const link = new RPCLink({
-    url: process.env.API_URL ?? 'http://localhost:3000/rpc',
-});
+/** Injectable dependencies for the oRPC client. */
+export interface OrpcClientDeps {
+    /** Override the default API URL. */
+    url?: string;
+    /** Inject a custom fetch implementation for testing. */
+    fetch?: typeof globalThis.fetch;
+    /** Request timeout in milliseconds (default 10 000). */
+    timeout?: number;
+}
 
-/** Typed oRPC client for the monorepo server contract. */
-export const orpc: ContractRouterClient<typeof planetContract> = createORPCClient(link);
+let testFetch: typeof globalThis.fetch | undefined;
+
+/** Override fetch for deterministic tests without mutating globalThis. */
+export function setFetchForTesting(fetchImpl: typeof globalThis.fetch): void {
+    testFetch = fetchImpl;
+}
+
+/** Restore the production fetch implementation after a test. */
+export function resetFetchForTesting(): void {
+    testFetch = undefined;
+}
+
+/** Create a typed oRPC client with injectable deps for testing. */
+export function createOrpcClient(deps: OrpcClientDeps = {}): ContractRouterClient<typeof planetContract> {
+    const url = deps.url ?? resolveApiUrl(process.env.API_URL);
+    const timeout = deps.timeout ?? DEFAULT_REQUEST_TIMEOUT_MS;
+
+    const link = new RPCLink({
+        url,
+        fetch: (input, init) => fetchWithTimeout(deps.fetch ?? testFetch ?? globalThis.fetch, input, init, timeout),
+    });
+
+    return createORPCClient(link);
+}
+
+/** Singleton client for the default entry point. */
+export const orpc = createOrpcClient();

@@ -2,5 +2,5 @@
 import { main } from './cli';
 
 if (import.meta.main) {
-    await main(Bun.argv.slice(2));
+    process.exitCode = await main(Bun.argv.slice(2));
 }
