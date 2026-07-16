@@ -295,9 +295,7 @@ describe('agent convergence paths', () => {
 
         expect(resolveInside(root, 'docs/reviews/review.json')).toBe(join(root, 'docs/reviews/review.json'));
         expect(() => resolveInside(root, '../outside')).toThrow('Path escapes base directory');
-        expect(destinationFor(root, 'code', 'candidate')).toBe(
-            join(root, 'docs/reviews/ts-libs-candidates/candidate.md'),
-        );
+        expect(destinationFor(root, 'config', 'candidate')).toBe(join(root, '.claude/imported-configs/candidate.md'));
     });
 
     it('detects whether symlinks resolve inside the source project', async () => {
@@ -376,6 +374,17 @@ describe('capability mode metadata', () => {
 });
 
 function rawCandidate(type: RawCandidate['type'], relativeSourcePath: string, content: string): RawCandidate {
+    if (type === 'code') {
+        return {
+            id: `${type}:${relativeSourcePath}`,
+            type,
+            sourcePath: relativeSourcePath,
+            relativeSourcePath,
+            destinationPath: null,
+            content,
+            sourceDigest: new Bun.CryptoHasher('sha256').update(content).digest('hex'),
+        };
+    }
     return {
         id: `${type}:${relativeSourcePath}`,
         type,

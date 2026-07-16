@@ -1,5 +1,6 @@
 import { mkdir, realpath } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
+import type { CopyCandidateKind } from './types';
 
 /** Resolve a path and validate it stays inside the given base directory. */
 export function resolveInside(base: string, input: string): string {
@@ -20,17 +21,15 @@ export function toPosixPath(path: string): string {
 }
 
 /** Compute the canonical destination path for a candidate inside the target project. */
-export function destinationFor(targetRoot: string, type: string, name: string): string {
-    if (type === 'skill') {
-        return join(targetRoot, '.claude', 'skills', name, 'SKILL.md');
+export function destinationFor(targetRoot: string, type: CopyCandidateKind, name: string): string {
+    switch (type) {
+        case 'skill':
+            return join(targetRoot, '.claude', 'skills', name, 'SKILL.md');
+        case 'command':
+            return join(targetRoot, '.claude', 'commands', `${name}.md`);
+        case 'config':
+            return join(targetRoot, '.claude', 'imported-configs', `${name}.md`);
     }
-    if (type === 'command') {
-        return join(targetRoot, '.claude', 'commands', `${name}.md`);
-    }
-    if (type === 'config') {
-        return join(targetRoot, '.claude', 'imported-configs', `${name}.md`);
-    }
-    return join(targetRoot, 'docs', 'reviews', 'ts-libs-candidates', `${name}.md`);
 }
 
 /** Generate a stable, human-readable identifier for a discovered candidate. */

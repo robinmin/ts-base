@@ -58,9 +58,6 @@ function hasMatch(patterns: RegExp[], text: string): boolean {
 }
 
 function looksLikeReusableCode(candidate: RawCandidate): boolean {
-    if (candidate.type === 'code') {
-        return true;
-    }
     return (
         CODE_FILE_EXTENSIONS.test(candidate.relativeSourcePath) && hasMatch(REUSABLE_CODE_PATTERNS, candidate.content)
     );
@@ -87,14 +84,14 @@ function classifyRaw(
         return { classification: 'sensitive', rationale };
     }
 
-    if (looksLikeReusableCode(candidate)) {
-        rationale.push('Looks like reusable TypeScript implementation code; propose extraction to ts-libs.');
-        return { classification: 'ts-libs-candidate', rationale };
-    }
-
     if (hasMatch(PROJECT_SPECIFIC_PATTERNS, haystack)) {
         rationale.push('Contains project, organization, path, cloud, or deployment-specific markers.');
         return { classification: 'project-specific', rationale };
+    }
+
+    if (looksLikeReusableCode(candidate)) {
+        rationale.push('Looks like reusable implementation code; review for surgical extraction to ts-libs.');
+        return { classification: 'ts-libs-candidate', rationale };
     }
 
     const markers = context?.projectMarkers ?? [];
@@ -129,16 +126,37 @@ function classifyRaw(
  */
 export function classifyCandidate(candidate: RawCandidate, context?: ClassifyContext): CapabilityCandidate {
     const result = classifyRaw(candidate, context);
-    return {
+    const base = {
         id: candidate.id,
         type: candidate.type,
         sourcePath: candidate.sourcePath,
         relativeSourcePath: candidate.relativeSourcePath,
-        destinationPath: candidate.destinationPath,
         classification: result.classification,
         supportedModes: detectModes(candidate),
         rationale: result.rationale,
-        requiredConfirmation: true,
+        requiredConfirmation: true as const,
+    };
+    if (candidate.type === 'code') {
+        return {
+            ...base,
+            type: 'code',
+            discoveryStrategy: 'review-only',
+            destinationPath: null,
+            sourceDigest: candidate.sourceDigest,
+            extractionTarget: result.classification === 'ts-libs-candidate' ? 'ts-libs' : 'rejected',
+            handPortChecklist: [
+                'Open the source file explicitly and review its dependencies.',
+                'Choose ts-base or ts-libs ownership before writing code.',
+                'Hand-adapt the smallest reusable seam; never copy via converge apply.',
+                'Run the target repository quality gates after adaptation.',
+            ],
+        };
+    }
+    return {
+        ...base,
+        type: candidate.type,
+        discoveryStrategy: 'copy',
+        destinationPath: candidate.destinationPath,
     };
 }
 

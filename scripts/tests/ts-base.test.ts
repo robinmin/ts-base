@@ -81,10 +81,53 @@ describe('ts-base CLI', () => {
         await expect(runCli(['converge', 'scan', '--from', '.', '--mode', 'app', '--type', 'bad'], io)).rejects.toThrow(
             'Invalid type',
         );
+        await expect(
+            runCli(['converge', 'scan', '--from', '.', '--mode', 'app', '--type', 'code'], io),
+        ).rejects.toThrow('--type code requires at least one --code-root');
         await expect(runCli(['converge', 'apply', '--review', 'missing.json'], io)).rejects.toThrow(
             'Missing required option --approve',
         );
         expect(output).toEqual([]);
+    });
+
+    it('emits metadata-only code evidence from repeatable explicit roots', async () => {
+        const root = await tempRoot();
+        const source = join(root, 'source');
+        const previousCwd = process.cwd();
+        await write(join(source, 'src/a.ts'), 'export const a = 1;\n');
+        await write(join(source, 'scripts/b.ts'), 'export const b = 2;\n');
+
+        try {
+            process.chdir(root);
+            await runCli(
+                [
+                    'converge',
+                    'scan',
+                    '--from',
+                    source,
+                    '--mode',
+                    'mono',
+                    '--type',
+                    'code',
+                    '--code-root',
+                    'src',
+                    '--code-root=scripts',
+                    '--review-id',
+                    'code-review',
+                ],
+                { stdout: () => {}, stderr: () => {} },
+            );
+            const artifact = JSON.parse(await readFile(join(root, 'docs/reviews/code-review.json'), 'utf8')) as {
+                candidates: Array<Record<string, unknown>>;
+                proposedChanges: unknown[];
+            };
+            expect(artifact.candidates).toHaveLength(2);
+            expect(artifact.candidates.every((candidate) => candidate.discoveryStrategy === 'review-only')).toBe(true);
+            expect(artifact.candidates.every((candidate) => !('content' in candidate))).toBe(true);
+            expect(artifact.proposedChanges).toEqual([]);
+        } finally {
+            process.chdir(previousCwd);
+        }
     });
 
     it('defaults scan options and returns 2 when apply approval is blocked', async () => {

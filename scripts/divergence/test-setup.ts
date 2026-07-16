@@ -51,21 +51,84 @@ export async function testEachMode(
     return 0;
 }
 
+async function assertNoMatches(tmp: string, pattern: string, globs: string[], message: string): Promise<void> {
+    const args = ['rg', '-n', pattern, tmp, ...globs.flatMap((glob) => ['-g', glob])];
+    const result = await $`${args}`.quiet().nothrow();
+    if (result.exitCode === 0) {
+        throw new Error(`${message}:\n${result.text()}`);
+    }
+    if (result.exitCode !== 1) {
+        throw new Error(`Search failed while checking generated project: ${result.stderr.toString()}`);
+    }
+}
+
+async function runGeneratedGate(label: string, command: () => Promise<unknown>): Promise<void> {
+    try {
+        await command();
+    } catch (error) {
+        const output =
+            error && typeof error === 'object'
+                ? `${'stdout' in error ? String(error.stdout) : ''}${'stderr' in error ? String(error.stderr) : ''}`
+                : '';
+        throw new Error(`${label} failed${output.trim() ? `:\n${output.trim()}` : ''}`, { cause: error });
+    }
+}
+
+/** Verify a freshly promoted monorepo through the complete generated-project gate. */
+export async function verifyPromotedMonorepo(tmp: string): Promise<void> {
+    await assertNoMatches(
+        tmp,
+        '@SCOPE/',
+        ['*.json', '*.ts', '*.tsx', '!node_modules/**', '!.git/**'],
+        'Scope rewriting failed: @SCOPE/ placeholder remains',
+    );
+    await assertNoMatches(
+        tmp,
+        '(?i)turbo(repo)?',
+        ['package.json', '*.ts', '*.json', '!docs/**', '!node_modules/**', '!.git/**'],
+        'Turbo reference remains in generated monorepo',
+    );
+    await runGeneratedGate('frozen install', () => $`bun install --frozen-lockfile`.cwd(tmp).quiet());
+    await runGeneratedGate('lint', () => $`bun run lint`.cwd(tmp).quiet());
+    await runGeneratedGate('typecheck', () => $`bun run typecheck`.cwd(tmp).quiet());
+    await runGeneratedGate('test', () => $`bun run test`.cwd(tmp).quiet());
+    await runGeneratedGate('build', () => $`bun run build`.cwd(tmp).quiet());
+    const gitStatus = await $`git status --porcelain`.cwd(tmp).quiet();
+    if (gitStatus.text().trim() !== '') {
+        throw new Error(`Generated monorepo has dirty git status after promotion:\n${gitStatus.text()}`);
+    }
+}
+
 /**
  * Create the real smoke-test runner that rsyncs the repo, runs setup, installs,
  * and checks. Exported so tests can verify the shell commands are formed correctly.
  */
 export function createRealRunner(projectRoot: string): (mode: Mode, tmp: string) => Promise<void> {
     return async (mode, tmp) => {
-        await $`rsync -a --exclude node_modules --exclude .git --exclude .turbo --exclude .coverage --exclude dist ${projectRoot}/ ${tmp}/`.quiet();
+        await $`rsync -a --exclude node_modules --exclude .git --exclude .coverage --exclude dist ${projectRoot}/ ${tmp}/`.quiet();
         await $`git init -q`.cwd(tmp).quiet();
         await runSetupDirect(mode, { noDb: false, noConfig: false }, tmp);
-        // bun install and bun run check may fail against minimal scaffolds.
-        // Suppress all subprocess output — coverage is the goal, not correctness.
-        await $`bun install`.cwd(tmp).quiet().nothrow();
-        await $`bun run check`.cwd(tmp).quiet().nothrow();
-        if (mode === 'lib') {
-            await $`bun run build`.cwd(tmp).quiet().nothrow();
+        // Scope replacement can change import sort order. Normalize only after
+        // dependencies are available, then snapshot the generated baseline.
+        await runGeneratedGate('bootstrap frozen install', () => $`bun install --frozen-lockfile`.cwd(tmp).quiet());
+        await runGeneratedGate('post-scope format', () => $`bun run format`.cwd(tmp).quiet());
+        await $`git add -A`.cwd(tmp).quiet();
+        await $`git -c user.name=ts-base -c user.email=ts-base@example.invalid commit -q -m "chore: snapshot generated baseline"`
+            .cwd(tmp)
+            .quiet();
+        if (mode === 'mono') {
+            await verifyPromotedMonorepo(tmp);
+            return;
+        }
+        await $`bun run lint`.cwd(tmp).quiet();
+        await $`bun run typecheck`.cwd(tmp).quiet();
+        await $`bun run test`.cwd(tmp).quiet();
+        if (mode === 'lib' || mode === 'cli') {
+            await $`bun run build`.cwd(tmp).quiet();
+        }
+        const gitStatus = await $`git status --porcelain`.cwd(tmp).quiet();
+        if (gitStatus.text().trim() !== '') {
+            throw new Error(`Generated ${mode} project is dirty after verification:\n${gitStatus.text()}`);
         }
     };
 }

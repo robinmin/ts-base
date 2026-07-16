@@ -37,6 +37,35 @@ function readOption(args: string[], name: string): string | undefined {
     return index >= 0 ? args[index + 1] : undefined;
 }
 
+function readOptions(args: string[], name: string): string[] {
+    const values: string[] = [];
+    const prefix = `${name}=`;
+    for (let index = 0; index < args.length; index += 1) {
+        const arg = args[index];
+        if (arg?.startsWith(prefix)) {
+            values.push(arg.slice(prefix.length));
+        } else if (arg === name) {
+            const value = args[index + 1];
+            if (!value || value.startsWith('--')) {
+                throw new Error(`Missing value for option ${name}`);
+            }
+            values.push(value);
+            index += 1;
+        }
+    }
+    return values;
+}
+
+function positiveIntegerOption(args: string[], name: string, fallback: number): number {
+    const raw = readOption(args, name);
+    if (!raw) return fallback;
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value <= 0) {
+        throw new Error(`${name} must be a positive integer`);
+    }
+    return value;
+}
+
 function requireOption(args: string[], name: string): string {
     const value = readOption(args, name);
     if (!value) {
@@ -84,9 +113,27 @@ async function scan(args: string[], io: CliIO): Promise<number> {
     const sourceProject = resolve(targetRoot, requireOption(args, '--from'));
     const targetMode = parseMode(requireOption(args, '--mode'));
     const typeFilter = parseTypeFilter(readOption(args, '--type'));
+    const codeRoots = readOptions(args, '--code-root');
+    if (typeFilter === 'code' && codeRoots.length === 0) {
+        throw new Error('--type code requires at least one --code-root <relative-path>');
+    }
     const reviewDir = resolve(targetRoot, readOption(args, '--review-dir') ?? 'docs/reviews');
     const id = readOption(args, '--review-id') ?? reviewId();
-    const options = { sourceProject, targetRoot, targetMode, typeFilter };
+    const options = {
+        sourceProject,
+        targetRoot,
+        targetMode,
+        typeFilter,
+        ...(codeRoots.length > 0
+            ? {
+                  code: {
+                      roots: codeRoots,
+                      maxFileBytes: positiveIntegerOption(args, '--code-max-bytes', 262_144),
+                      maxCandidates: positiveIntegerOption(args, '--code-max-candidates', 500),
+                  },
+              }
+            : {}),
+    };
     const raw = await discoverCandidates(options);
     const candidates = classifyCandidates(raw, { projectMarkers: await sourceProjectMarkers(sourceProject) });
     const review = await createReview(options, candidates);
@@ -137,6 +184,8 @@ function usage(): string {
         '  bun run scripts/ts-base.ts ensure-scaffold-installs',
         '  bun run scripts/ts-base.ts converge scan --from <path> --mode <app|lib|cli|mono>',
         '      [--type <all|skills|commands|configs|code>] [--review-dir <dir>] [--review-id <id>]',
+        '      [--code-root <relative-path> ...] [--code-max-bytes <n>] [--code-max-candidates <n>]',
+        '      code is review-only and never applied; --type code requires --code-root',
         '  bun run scripts/ts-base.ts converge review --review <review.json>',
         '  bun run scripts/ts-base.ts converge apply --review <review.json> --approve <candidate-id[,candidate-id]>',
         '',

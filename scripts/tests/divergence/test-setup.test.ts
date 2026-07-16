@@ -12,7 +12,14 @@ afterAll(() => {
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createRealRunner, runTestSetup, testEachMode, validateModes } from '../../divergence/test-setup';
+import { $ } from 'bun';
+import {
+    createRealRunner,
+    runTestSetup,
+    testEachMode,
+    validateModes,
+    verifyPromotedMonorepo,
+} from '../../divergence/test-setup';
 
 const tmpRoots: string[] = [];
 
@@ -143,11 +150,11 @@ describe('createRealRunner', () => {
         expect(typeof runner).toBe('function');
     });
 
-    it('invokes the real runner against a minimal scaffold', async () => {
+    it('propagates a quality-gate failure from a generated minimal scaffold', async () => {
         // Create a minimal app scaffold that runSetupDirect can process.
         const scaffoldRoot = await tempDir();
         await mkdir(join(scaffoldRoot, 'src-app'), { recursive: true });
-        await writeFile(join(scaffoldRoot, 'src-app', 'index.ts'), '// app\n');
+        await writeFile(join(scaffoldRoot, 'src-app', 'index.ts'), 'const invalid: string = 1;\n');
         await mkdir(join(scaffoldRoot, 'src-lib'));
         await writeFile(join(scaffoldRoot, 'package.json'), JSON.stringify({ name: 'runner-test' }));
         // bun install's prepare hook needs lefthook. Copy the project's .prototools.
@@ -175,6 +182,57 @@ describe('createRealRunner', () => {
         }
         await mkdir(join(scaffoldRoot, '.claude', 'skills', 'example'), { recursive: true });
         const runner = createRealRunner(scaffoldRoot);
-        await runner('app', join(scaffoldRoot, 'work'));
+        const work = await tempDir();
+        await expect(runner('app', work)).rejects.toThrow();
     }, 60000); // 60s timeout for rsync + install
+});
+
+// ============================================================================
+// verifyPromotedMonorepo
+// ============================================================================
+
+describe('verifyPromotedMonorepo', () => {
+    it('passes when temp dir has no @SCOPE/ placeholder', async () => {
+        const tmp = await tempDir();
+        await mkdir(join(tmp, 'apps', 'server'), { recursive: true });
+        await writeFile(
+            join(tmp, 'package.json'),
+            JSON.stringify({
+                name: '@test/root',
+                scripts: {
+                    lint: "bun -e ''",
+                    typecheck: "bun -e ''",
+                    test: "bun -e ''",
+                    build: "bun -e ''",
+                },
+            }),
+        );
+        await writeFile(join(tmp, 'apps', 'server', 'package.json'), JSON.stringify({ name: '@test/server' }));
+        await $`bun install`.cwd(tmp).quiet();
+        await $`git init -q`.cwd(tmp).quiet();
+        await $`git add -A`.cwd(tmp).quiet();
+        await $`git -c user.name=test -c user.email=test@example.invalid commit -q -m init`.cwd(tmp).quiet();
+        await verifyPromotedMonorepo(tmp);
+    });
+
+    it('fails when a generated-project gate fails', async () => {
+        const tmp = await tempDir();
+        await writeFile(
+            join(tmp, 'package.json'),
+            JSON.stringify({
+                name: '@test/root',
+                scripts: {
+                    lint: "bun -e 'process.exit(1)'",
+                    typecheck: "bun -e ''",
+                    test: "bun -e ''",
+                    build: "bun -e ''",
+                },
+            }),
+        );
+        await $`bun install`.cwd(tmp).quiet();
+        await $`git init -q`.cwd(tmp).quiet();
+        await $`git add -A`.cwd(tmp).quiet();
+        await $`git -c user.name=test -c user.email=test@example.invalid commit -q -m init`.cwd(tmp).quiet();
+        await expect(verifyPromotedMonorepo(tmp)).rejects.toThrow();
+    });
 });

@@ -3,13 +3,10 @@ import { logger } from '../lib/logger';
 
 const TARGETS = [
     'src-cli/node_modules',
-    'src-cli/.turbo',
     'src-cli/bun.lock',
     'src-monorepo/node_modules',
-    'src-monorepo/.turbo',
     'src-monorepo/bun.lock',
     '.coverage',
-    '.turbo',
     'dist',
 ];
 

@@ -1,8 +1,14 @@
-import { lstat, readdir } from 'node:fs/promises';
-import { basename, extname, join, relative } from 'node:path';
+import { lstat, readdir, stat } from 'node:fs/promises';
+import { basename, extname, isAbsolute, join, relative } from 'node:path';
 import { Glob } from 'bun';
-import { candidateId, destinationFor, isSymlinkInside, toPosixPath } from './paths';
-import type { CandidateKind, ConvergenceScanOptions, RawCandidate } from './types';
+import { candidateId, destinationFor, isSymlinkInside, resolveInside, toPosixPath } from './paths';
+import type {
+    CandidateKind,
+    CodeDiscoveryOptions,
+    ConvergenceScanOptions,
+    CopyCandidateKind,
+    RawCandidate,
+} from './types';
 
 const CONFIG_FILES = ['AGENTS.md', 'CLAUDE.md', 'GEMINI.md'];
 
@@ -46,7 +52,7 @@ async function resolvesInsideSource(sourceProject: string, path: string): Promis
 async function addCandidate(
     candidates: RawCandidate[],
     options: ConvergenceScanOptions,
-    type: CandidateKind,
+    type: CopyCandidateKind,
     sourcePath: string,
     name: string,
     content?: string,
@@ -148,7 +154,88 @@ async function discoverConfigs(options: ConvergenceScanOptions, candidates: RawC
     }
 }
 
-/** Scan a source project for importable skills, commands, and configs. */
+// ── Review-only code discovery ────────────────────────────────────
+
+const CODE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs']);
+const CODE_EXCLUDE = [
+    new Glob('**/node_modules/**'),
+    new Glob('**/.git/**'),
+    new Glob('**/dist/**'),
+    new Glob('**/build/**'),
+    new Glob('**/.coverage/**'),
+    new Glob('**/coverage/**'),
+    new Glob('**/tests/**'),
+    new Glob('**/__tests__/**'),
+    new Glob('**/*.test.*'),
+    new Glob('**/*.spec.*'),
+    new Glob('**/*.d.ts'),
+    new Glob('**/*.map'),
+];
+
+function isSupportedCodePath(relativePath: string): boolean {
+    return CODE_EXTENSIONS.has(extname(relativePath)) && !CODE_EXCLUDE.some((pattern) => pattern.match(relativePath));
+}
+
+/** Discover bounded code metadata for review; these candidates can never be applied. */
+export async function discoverCode(
+    options: ConvergenceScanOptions & { code: CodeDiscoveryOptions },
+): Promise<RawCandidate[]> {
+    const sourceProject = options.sourceProject;
+    const paths = new Set<string>();
+
+    for (const configuredRoot of options.code.roots) {
+        if (isAbsolute(configuredRoot)) {
+            throw new Error(`Code root must be relative to the source project: ${configuredRoot}`);
+        }
+        const root = resolveInside(sourceProject, configuredRoot);
+        if (!(await exists(root))) {
+            throw new Error(`Code root does not exist in source project: ${configuredRoot}`);
+        }
+        if (!(await resolvesInsideSource(sourceProject, root))) {
+            throw new Error(`Code root resolves outside the source project: ${configuredRoot}`);
+        }
+
+        for await (const rootRelativePath of new Glob('**/*').scan({ cwd: root, onlyFiles: true })) {
+            const sourcePath = join(root, rootRelativePath);
+            const relativeSourcePath = toPosixPath(relative(sourceProject, sourcePath));
+            if (!isSupportedCodePath(relativeSourcePath)) {
+                continue;
+            }
+            if (!(await resolvesInsideSource(sourceProject, sourcePath))) {
+                continue;
+            }
+            if ((await stat(sourcePath)).size > options.code.maxFileBytes) {
+                continue;
+            }
+            paths.add(sourcePath);
+        }
+    }
+
+    const selected = [...paths]
+        .sort((left, right) =>
+            toPosixPath(relative(sourceProject, left)).localeCompare(toPosixPath(relative(sourceProject, right))),
+        )
+        .slice(0, options.code.maxCandidates);
+
+    return Promise.all(
+        selected.map(async (sourcePath) => {
+            const bytes = new Uint8Array(await Bun.file(sourcePath).arrayBuffer());
+            const content = new TextDecoder().decode(bytes);
+            const relativeSourcePath = toPosixPath(relative(sourceProject, sourcePath));
+            return {
+                id: candidateId('code', relativeSourcePath),
+                type: 'code' as const,
+                sourcePath,
+                relativeSourcePath,
+                destinationPath: null,
+                content,
+                sourceDigest: new Bun.CryptoHasher('sha256').update(bytes).digest('hex'),
+            };
+        }),
+    );
+}
+
+/** Scan a source project for importable skills, commands, configs, and review-only code. */
 export async function discoverCandidates(options: ConvergenceScanOptions): Promise<RawCandidate[]> {
     const sourceProject = options.sourceProject;
     const normalizedOptions = { ...options, sourceProject };
@@ -157,6 +244,9 @@ export async function discoverCandidates(options: ConvergenceScanOptions): Promi
     await discoverSkills(normalizedOptions, candidates);
     await discoverCommands(normalizedOptions, candidates);
     await discoverConfigs(normalizedOptions, candidates);
+    if (includesType(options.typeFilter, 'code') && options.code) {
+        candidates.push(...(await discoverCode({ ...normalizedOptions, code: options.code })));
+    }
 
     return candidates;
 }

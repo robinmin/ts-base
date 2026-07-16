@@ -2,16 +2,20 @@ import { relative } from 'node:path';
 import { annotateSupportedModes, wireAgentSkillsSymlink } from './capabilities';
 import { BLOCKED_CLASSIFICATIONS, classifyCandidate } from './classify';
 import { ensureParentDirectory, resolveInside } from './paths';
-import type { ApplyResult, CapabilityCandidate, CapabilityReview } from './types';
+import type { ApplyResult, CapabilityCandidate, CapabilityReview, CopyCandidate } from './types';
+import { isCopyCandidate } from './types';
 
-function canApply(candidate: CapabilityCandidate, review: CapabilityReview): boolean {
+function canApply(candidate: CapabilityCandidate, review: CapabilityReview): candidate is CopyCandidate {
+    if (!isCopyCandidate(candidate)) {
+        return false;
+    }
     if (BLOCKED_CLASSIFICATIONS.has(candidate.classification)) {
         return false;
     }
     if (candidate.classification === 'mode-specific' && !candidate.supportedModes.includes(review.targetMode)) {
         return false;
     }
-    return candidate.type === 'skill' || candidate.type === 'command' || candidate.type === 'config';
+    return true;
 }
 
 /**

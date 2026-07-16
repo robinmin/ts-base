@@ -206,7 +206,7 @@ async function applyScope(root: string, scope: string): Promise<void> {
     const seen = new Set<string>();
     for (const pattern of patterns) {
         for await (const rel of new Bun.Glob(pattern).scan({ cwd: root })) {
-            if (seen.has(rel) || rel.includes('node_modules/') || rel.includes('.turbo/')) {
+            if (seen.has(rel) || rel.includes('node_modules/')) {
                 continue;
             }
             seen.add(rel);
